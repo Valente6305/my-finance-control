@@ -42,4 +42,60 @@ function monthlySummary(tx){const month=(new Date()).toISOString().slice(0,7);co
 $("import").onclick=async()=>{const f=$("file").files[0];if(!f){$("msg").textContent="Select a .mfc file first.";return}const pw=$("password").value;if(!pw){$("msg").textContent="Enter the transfer password.";return}$("msg").textContent="Decrypting locally...";try{const obj=JSON.parse(await f.text()),data=await decrypt(obj,pw);if($("persist").checked){const count=importSnapshot(data);reconcileFromSaved();display(data);$("msg").textContent="Imported "+count+" new movements. Confirm which CGD account is current and which is the credit card; existing budget and debt targets stay intact.";}else{display(data);$("msg").textContent="Decrypted for preview only. No snapshot saved."}}catch(e){$("msg").textContent="Import unsuccessful: "+(e.name==="OperationError"?"Incorrect password or damaged encrypted file.":e.message)}finally{$("password").value=""}};
 $("clear").onclick=()=>{if(!confirm("Delete stored bank balances and imported banking transactions from this device? Back up first."))return;let s=stateRead();delete s.bankSync;delete s.bankReconcile;delete s.bankCurrentSource;s.transactions=(s.transactions||[]).filter(t=>!t.import_id);localStorage.setItem(KEY,JSON.stringify(s));currentData=null;$("summary").innerHTML="<p>No bank data loaded.</p>";$("msg").textContent="Imported data removed. Historical budget settings remain."};
 const st=stateRead();if(st.bankSync){display({generated_at:st.bankSync.generated_at,banks:st.bankSync.banks});$("msg").textContent="Displaying previously imported balances (transactions are stored in Transactions)."}
+
+/* Debt reconciliation v1: estimates only, never bank-confirmed balances. */
+function debtMatches(t,kind){
+ const d=String(t.description||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase();
+ if(kind==="car")return /CREDIBOM/.test(d);
+ return /CAIXA CLASSIC|PAGAMENTO CARTAO|CARTAO CREDITO|PAG CARTAO|PAG\. CARTAO/.test(d);
+}
+function computeDebtEstimates(s){
+ const cfg=s.debtAnchors||{}, tx=Array.isArray(s.transactions)?s.transactions:[];
+ const out={};
+ for(const [kind,field,apr] of [["car","carBalance","carAPR"],["card","cardBalance","cardAPR"]]){
+  const anchor=cfg[kind];
+  if(!anchor||!/^\d{4}-\d{2}-\d{2}$/.test(anchor.date)||!Number.isFinite(Number(anchor.balance))||Number(anchor.balance)<0)continue;
+  let balance=Number(anchor.balance),last=anchor.date,paid=0,interest=0,matched=[];
+  const candidates=tx.filter(t=>t.import_id&&t.date>anchor.date&&t.date<=new Date().toISOString().slice(0,10)&&Number(t.amount)<0&&debtMatches(t,kind))
+    .sort((a,b)=>a.date.localeCompare(b.date)||String(a.import_id).localeCompare(String(b.import_id)));
+  for(const t of candidates){
+   const days=Math.max(0,(Date.parse(t.date+"T00:00:00Z")-Date.parse(last+"T00:00:00Z"))/86400000);
+   const rate=Math.max(0,Number(s[apr])||0)/100;
+   const charge=balance*rate*days/365;
+   interest+=charge;balance+=charge;
+   const p=-Number(t.amount);balance=Math.max(0,balance-p);paid+=p;matched.push(t.import_id);last=t.date;
+  }
+  out[kind]={balance:Math.round(balance*100)/100,anchorBalance:Number(anchor.balance),anchorDate:anchor.date,payments:paid,estimatedInterest:Math.round(interest*100)/100,matches:matched.length,asOf:last,status:"estimate",warning:"Interest is estimated; fees, new card purchases and lender adjustments are not included."};
+ }
+ return out;
+}
+function renderDebtReconciliation(){
+ const s=stateRead(),out=computeDebtEstimates(s);
+ let html='<h2>Debt estimates from imported transactions</h2><p class="muted">Set an initial verified outstanding balance and its statement date once. Only later identified payments will reduce the estimate. No payment is initiated.</p>';
+ for(const [kind,label,field] of [["car","Credibom (car)","carBalance"],["card","Caixa Classic","cardBalance"]]){
+  const a=s.debtAnchors?.[kind]||{},v=out[kind];
+  html+='<div class="row"><strong>'+label+'</strong><span>'+(v?format(v.balance)+' · estimated ('+v.matches+' payments)':'Not calibrated')+'</span></div>';
+  html+='<label>Verified outstanding balance (€)<input type="number" min="0" step="0.01" id="anchor-'+kind+'" value="'+escapeHTML(a.balance??"")+'"></label>';
+  html+='<label>Statement date<input type="date" id="anchor-date-'+kind+'" value="'+escapeHTML(a.date||"")+'"></label>';
+  if(v)html+='<p class="muted">Payments: '+format(v.payments)+'; approximate accrued interest to last payment: '+format(v.estimatedInterest)+'. Excludes later interest, fees and new card purchases. Do not treat as a lender statement.</p>';
+ }
+ html+='<button id="saveDebtAnchors">Save reference balances & recalculate</button><p class="note">For Caixa Classic, purchases and charges may increase debt. The estimate is therefore a lower-bound scenario, not a confirmed outstanding balance. Review your latest statement.</p>';
+ let el=document.getElementById("debtReconciliation");if(!el)return;el.innerHTML=html;
+ document.getElementById("saveDebtAnchors").onclick=()=>{
+  const st=stateRead();st.debtAnchors=st.debtAnchors||{};
+  for(const kind of ["car","card"]){
+   const raw=document.getElementById("anchor-"+kind).value, date=document.getElementById("anchor-date-"+kind).value;
+   if(!raw&&!date){delete st.debtAnchors[kind];continue}
+   if(!raw||!/^\d{4}-\d{2}-\d{2}$/.test(date)||Number(raw)<0||!Number.isFinite(Number(raw))){alert("Enter a valid amount and date for "+kind);return}
+   st.debtAnchors[kind]={balance:Number(raw),date};
+  }
+  st.debtEstimates=computeDebtEstimates(st);
+  localStorage.setItem(KEY,JSON.stringify(st));renderDebtReconciliation();
+ };
+}
+const debtCard=document.createElement("div");debtCard.className="card";debtCard.id="debtReconciliation";
+document.querySelector("main").insertBefore(debtCard,document.querySelector("main").lastElementChild);
+const originalImportHandler=document.getElementById("import").onclick;
+document.getElementById("import").onclick=async function(){await originalImportHandler();const st=stateRead();if(st.bankSync){st.debtEstimates=computeDebtEstimates(st);localStorage.setItem(KEY,JSON.stringify(st))}renderDebtReconciliation()};
+renderDebtReconciliation();
 </script></body></html>
