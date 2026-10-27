@@ -53,7 +53,7 @@ function computeDebtEstimates(s){
  const cfg=s.debtAnchors||{}, tx=Array.isArray(s.transactions)?s.transactions:[],out={};
  for(const kind of ["car","card"]){
   const anchor=cfg[kind];
-  if(!anchor||!/^\\d{4}-\\d{2}-\\d{2}$/.test(anchor.date)||!Number.isFinite(Number(anchor.balance))||Number(anchor.balance)<0)continue;
+  if(!anchor||!/^\d{4}-\d{2}-\d{2}$/.test(anchor.date)||!Number.isFinite(Number(anchor.balance))||Number(anchor.balance)<0)continue;
   const payments=tx.filter(t=>t.import_id&&t.date>anchor.date&&t.date<=new Date().toISOString().slice(0,10)&&Number(t.amount)<0&&debtMatches(t,kind));
   const unique=[...new Map(payments.map(t=>[t.import_id,t])).values()];
   const paid=unique.reduce((sum,t)=>sum-Number(t.amount),0);
@@ -62,15 +62,17 @@ function computeDebtEstimates(s){
  }
  return out;
 }
+function debtEuro(n){return new Intl.NumberFormat('pt-PT',{style:'currency',currency:'EUR'}).format(Number(n)||0)}
+function debtEscape(x){return String(x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function renderDebtReconciliation(){
  const s=stateRead(),out=computeDebtEstimates(s);
  let html='<h2>Debt estimates from imported transactions</h2><p class="muted">Set an initial verified outstanding balance and its statement date once. Only later identified payments will reduce the estimate. No payment is initiated.</p>';
  for(const [kind,label,field] of [["car","Credibom (car)","carBalance"],["card","Caixa Classic","cardBalance"]]){
   const a=s.debtAnchors?.[kind]||{},v=out[kind];
-  html+='<div class="row"><strong>'+label+'</strong><span>'+(v?format(v.balance)+' · estimated ('+v.matches+' payments)':'Not calibrated')+'</span></div>';
-  html+='<label>Remaining scheduled payments including interest (€)<input type="number" min="0" step="0.01" id="anchor-'+kind+'" value="'+escapeHTML(a.balance??"")+'"></label>';
-  html+='<label>Statement date<input type="date" id="anchor-date-'+kind+'" value="'+escapeHTML(a.date||"")+'"></label>';
-  if(v)html+='<p class="muted">Payments deducted: '+format(v.payments)+'. No interest added. The reference balance must include all scheduled future instalments. New card purchases are not included.</p>';
+  html+='<div class="row"><strong>'+label+'</strong><span>'+(v?debtEuro(v.balance)+' · estimated ('+v.matches+' payments)':'Not calibrated')+'</span></div>';
+  html+='<label>Remaining scheduled payments including interest (€)<input type="number" min="0" step="0.01" id="anchor-'+kind+'" value="'+debtEscape(a.balance??"")+'"></label>';
+  html+='<label>Statement date<input type="date" id="anchor-date-'+kind+'" value="'+debtEscape(a.date||"")+'"></label>';
+  if(v)html+='<p class="muted">Payments deducted: '+debtEuro(v.payments)+'. No interest added. The reference balance must include all scheduled future instalments. New card purchases are not included.</p>';
  }
  html+='<button id="saveDebtAnchors">Save reference balances & recalculate</button><p class="note">For Caixa Classic, purchases and charges may increase debt. The estimate is therefore a lower-bound scenario, not a confirmed outstanding balance. Review your latest statement.</p>';
  let el=document.getElementById("debtReconciliation");if(!el)return;el.innerHTML=html;
