@@ -49,18 +49,26 @@ function makeReport(s,p){
 const card=(title,html,cls='')=>'<section class="card '+cls+'"><h2>'+title+'</h2>'+html+'</section>';
 const row=(a,b)=>'<div class="row"><span>'+a+'</span><strong>'+b+'</strong></div>';
 const download=(name,data,type)=>{const a=document.createElement('a'),u=URL.createObjectURL(new Blob([data],{type}));a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),2000)};
+function activeBudget(s,p){return {Alimentação:n(s.food),Transportes:n(s.transport),Comunicações:n(s.meo),'Serviços bancários':n(s.bankSubs),Outros:n(s.misc),...(p.budgets||{})}}
+function snapshotBudget(s,p){
+ const key=today().slice(0,7),history=p.budgetHistory||{};
+ if(history[key])return p;
+ const updated={...p,budgetHistory:{...history,[key]:{categories:activeBudget(s,p),createdAt:new Date().toISOString(),source:'automatic-first-visit'}}};
+ persist(updated);return updated;
+}
 function previousMonthReview(s,p){
  const d=new Date(),previous=new Date(d.getFullYear(),d.getMonth()-1,1),mm=previous.getFullYear()+'-'+String(previous.getMonth()+1).padStart(2,'0');
  const unique=new Map();for(const t of transactions(s)){const k=txkey(t);if(!unique.has(k))unique.set(k,t)}
  const tx=[...unique.values()].filter(t=>month(t.date)===mm);
  const out=tx.filter(t=>n(t.amount)<0&&!['Prestação','Transferência'].includes(classify(t,p)));
  const spent=out.reduce((a,t)=>a-n(t.amount),0);
- const budgets={Alimentação:n(s.food),Transportes:n(s.transport),Comunicações:n(s.meo),'Serviços bancários':n(s.bankSubs),Outros:n(s.misc),...(p.budgets||{})};
+ const snapshot=p.budgetHistory?.[mm];
+ const budgets=snapshot?.categories||activeBudget(s,p);
  const budget=Object.values(budgets).reduce((a,v)=>a+n(v),0);
  const categorized={};for(const t of out){const c=classify(t,p);categorized[c]=(categorized[c]||0)-n(t.amount)}
  const payments=[['Credibom',210.74,/CREDIBOM/],['Caixa Classic',231.25,/CAIXA CLASSIC|PAGAMENTO CARTAO|PAG CARTAO|CARTAO CREDITO/]].map(([name,amount,re])=>({name,amount,ok:!!s.paymentConfirmations?.[mm]?.[name]||tx.some(t=>n(t.amount)<0&&re.test(normalize(t.description))&&Math.abs(-n(t.amount)-amount)<=1)}));
  const hasImported=tx.some(t=>t.import_id),complete=hasImported&&tx.length>=5;
- let content='<p class="muted">Período: '+mm+'. Análise automática dos movimentos disponíveis. Os limites são os atualmente configurados; sem histórico de orçamento não é possível garantir que eram os limites vigentes no mês anterior.</p>';
+ let content='<p class="muted">Período: '+mm+'. Análise automática dos movimentos disponíveis. '+(snapshot?'Orçamento histórico guardado automaticamente em '+esc(snapshot.createdAt.slice(0,10))+'.':'Sem orçamento histórico para este mês: os limites atuais são apenas uma referência, não o plano original.')+'</p>';
  content+=row('Movimentos disponíveis',String(tx.length)+(hasImported?' · com importação bancária':' · sem importação bancária'));
  content+=row('Despesas classificadas',eur(spent));
  content+=row('Orçamento de referência',budget>0?eur(budget):'Não configurado');
@@ -73,7 +81,7 @@ function previousMonthReview(s,p){
  return card('Revisão automática do mês anterior · '+mm,content);
 }
 function render(){
- const s=read(),p=prefs(),r=makeReport(s,p);
+ const s=read(),p=snapshotBudget(s,prefs()),r=makeReport(s,p);
  let html=previousMonthReview(s,p)+card('Estado financeiro', '<div class="grid">'+[
  ['Saldo CGD',eur(r.currentBalance)],['Reserva protegida',eur(r.reserve)],['Prestações por identificar',eur(r.pending)],['Orçamento ainda disponível',eur(r.remainingBudget)],['Previsão conservadora',eur(r.projected)]
  ].map(([a,b])=>'<div>'+row(esc(a),esc(b))+'</div>').join('')+'</div><p class="muted">Projeção conservadora para o restante mês: saldo atual menos reserva, margem de segurança, prestações não identificadas e orçamento mensal por utilizar. Não é uma previsão exata até ao próximo salário. Não inclui movimentos futuros desconhecidos.</p>',r.projected<0?'flag':'flag ok');
