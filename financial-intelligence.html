@@ -49,9 +49,32 @@ function makeReport(s,p){
 const card=(title,html,cls='')=>'<section class="card '+cls+'"><h2>'+title+'</h2>'+html+'</section>';
 const row=(a,b)=>'<div class="row"><span>'+a+'</span><strong>'+b+'</strong></div>';
 const download=(name,data,type)=>{const a=document.createElement('a'),u=URL.createObjectURL(new Blob([data],{type}));a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),2000)};
+function previousMonthReview(s,p){
+ const d=new Date(),previous=new Date(d.getFullYear(),d.getMonth()-1,1),mm=previous.getFullYear()+'-'+String(previous.getMonth()+1).padStart(2,'0');
+ const unique=new Map();for(const t of transactions(s)){const k=txkey(t);if(!unique.has(k))unique.set(k,t)}
+ const tx=[...unique.values()].filter(t=>month(t.date)===mm);
+ const out=tx.filter(t=>n(t.amount)<0&&!['Prestação','Transferência'].includes(classify(t,p)));
+ const spent=out.reduce((a,t)=>a-n(t.amount),0);
+ const budgets={Alimentação:n(s.food),Transportes:n(s.transport),Comunicações:n(s.meo),'Serviços bancários':n(s.bankSubs),Outros:n(s.misc),...(p.budgets||{})};
+ const budget=Object.values(budgets).reduce((a,v)=>a+n(v),0);
+ const categorized={};for(const t of out){const c=classify(t,p);categorized[c]=(categorized[c]||0)-n(t.amount)}
+ const payments=[['Credibom',210.74,/CREDIBOM/],['Caixa Classic',231.25,/CAIXA CLASSIC|PAGAMENTO CARTAO|PAG CARTAO|CARTAO CREDITO/]].map(([name,amount,re])=>({name,amount,ok:!!s.paymentConfirmations?.[mm]?.[name]||tx.some(t=>n(t.amount)<0&&re.test(normalize(t.description))&&Math.abs(-n(t.amount)-amount)<=1)}));
+ const hasImported=tx.some(t=>t.import_id),complete=hasImported&&tx.length>=5;
+ let content='<p class="muted">Período: '+mm+'. Análise automática dos movimentos disponíveis. Os limites são os atualmente configurados; sem histórico de orçamento não é possível garantir que eram os limites vigentes no mês anterior.</p>';
+ content+=row('Movimentos disponíveis',String(tx.length)+(hasImported?' · com importação bancária':' · sem importação bancária'));
+ content+=row('Despesas classificadas',eur(spent));
+ content+=row('Orçamento de referência',budget>0?eur(budget):'Não configurado');
+ content+=row('Desvio face ao orçamento',budget>0?eur(spent-budget):'Indeterminado');
+ content+=row('Execução do orçamento',budget>0?(spent/budget*100).toFixed(1)+'%':'Indeterminada');
+ content+=row('Avaliação',!complete?'⚪ Dados insuficientes para conclusão':budget<=0?'⚪ Sem orçamento configurado':spent<=budget?'🟢 Dentro do orçamento de referência':'🔴 Acima do orçamento de referência');
+ content+=payments.map(x=>row(esc(x.name),x.ok?'🟢 Pagamento identificado/confirmado':'⚪ Não identificado (não prova falta de pagamento)')).join('');
+ content+='<h3>Despesas por categoria</h3>'+Object.entries(categorized).sort((a,b)=>b[1]-a[1]).map(([cat,v])=>row(esc(cat),eur(v))).join('');
+ content+='<p class="muted">A poupança líquida, a evolução do património e a manutenção da reserva exigem saldos históricos completos; não são inferidas apenas das despesas. Uma confirmação manual não é um movimento bancário.</p>';
+ return card('Revisão automática do mês anterior · '+mm,content);
+}
 function render(){
  const s=read(),p=prefs(),r=makeReport(s,p);
- let html=card('Estado financeiro', '<div class="grid">'+[
+ let html=previousMonthReview(s,p)+card('Estado financeiro', '<div class="grid">'+[
  ['Saldo CGD',eur(r.currentBalance)],['Reserva protegida',eur(r.reserve)],['Prestações por identificar',eur(r.pending)],['Orçamento ainda disponível',eur(r.remainingBudget)],['Previsão conservadora',eur(r.projected)]
  ].map(([a,b])=>'<div>'+row(esc(a),esc(b))+'</div>').join('')+'</div><p class="muted">Projeção conservadora para o restante mês: saldo atual menos reserva, margem de segurança, prestações não identificadas e orçamento mensal por utilizar. Não é uma previsão exata até ao próximo salário. Não inclui movimentos futuros desconhecidos.</p>',r.projected<0?'flag':'flag ok');
  html+=card('Semáforos e alertas',r.payments.map(x=>'<div class="card flag '+(x.count||x.manual?'ok':x.stage==='review'?'':'warn')+'">'+row(esc(x.name),x.count?'🟢 Detetada · '+eur(x.paid):x.manual?'🟢 Confirmada manualmente · '+eur(x.amount):x.stage==='review'?'🔴 Verificar após prazo · '+eur(x.amount):'🟠 A aguardar · '+eur(x.amount))+' <button data-confirm-payment="'+esc(x.name)+'">'+(x.manual?'Anular confirmação':x.count?'Conciliado':'Confirmar pagamento')+'</button></div>').join('')+'<div class="card flag '+(r.budgetTotal<=0?'warn':r.spendingTotal>r.budgetTotal?'':'ok')+'">'+row('Despesas mensais',eur(r.spendingTotal)+' / '+eur(r.budgetTotal))+'</div>'+r.alert.map(([kind,msg])=>'<p class="card flag '+(kind==='warn'?'warn':'')+'">'+esc(msg)+'</p>').join('')+'<p class="muted">A ausência de movimento não prova atraso. Credibom: 210,74 € no dia 25; Caixa Classic: 231,25 € entre os dias 10 e 15. A deteção exige descrição e valor compatíveis (tolerância de 1 €).</p>');
