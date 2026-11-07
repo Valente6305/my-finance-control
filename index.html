@@ -14,9 +14,13 @@ function toast(t){const e=document.getElementById('toast');e.textContent=t;e.sty
 function transactions(){const m=new Map();for(const t of state.transactions||[]){if(!t||!/^\d{4}-\d{2}-\d{2}/.test(String(t.date||''))||!Number.isFinite(Number(t.amount)))continue;const k=txkey(t);if(!m.has(k))m.set(k,t)}return [...m.values()]}
 function isTransfer(t){return t.category==='Transfer'||/TRANSFERENCIA ENTRE CONTAS|REVOLUT TOP UP|TRANSFER TO OWN/.test(norm(t.description))}
 function isDebt(t){return t.category==='Debt payment'||/CREDIBOM|CAIXA CLASSIC|PAGAMENTO CARTAO|PAG CARTAO|CARTAO CREDITO/.test(norm(t.description))}
-function isSalary(t){return t.category==='Salary'||/VENCIMENTO|SALARIO|ORDENADO/.test(norm(t.description))}
+function regularSalaryCandidates(){
+ const seed=n(state.salary)||2096.22;
+ return transactions().filter(t=>n(t.amount)>0&&/^T(F|R)I?\s+ASSOCIACAO\s+RAEGE$/.test(norm(t.description).replace(/\s+/g,' ').trim())).filter(t=>{const a=n(t.amount);return a>=seed*.7&&a<=seed*1.35})
+}
+function isSalary(t){return regularSalaryCandidates().some(x=>txkey(x)===txkey(t))}
 function monthlySpend(mm=currentMonth()){return transactions().filter(t=>month(t.date)===mm&&n(t.amount)<0&&!isTransfer(t)&&!isDebt(t)).reduce((a,t)=>a-n(t.amount),0)}
-function salaryDetected(){return transactions().filter(t=>month(t.date)===currentMonth()&&n(t.amount)>0&&isSalary(t)).reduce((a,t)=>a+n(t.amount),0)}
+function salaryDetected(){const seed=n(state.salary)||2096.22,c=regularSalaryCandidates().filter(t=>month(t.date)===currentMonth());if(!c.length)return 0;return n(c.sort((a,b)=>Math.abs(n(a.amount)-seed)-Math.abs(n(b.amount)-seed))[0].amount)}
 function paymentStatus(name,amount,re){const mm=currentMonth(),manual=state.paymentConfirmations?.[mm]?.[name];const hits=transactions().filter(t=>month(t.date)===mm&&n(t.amount)<0&&re.test(norm(t.description))&&Math.abs(-n(t.amount)-amount)<=1);return {name,amount,detected:hits.length>0||!!manual,bank:hits.length>0,manual:!hits.length&&!!manual}}
 function paymentStatuses(){return [paymentStatus('Credibom',n(state.carRegular)||210.74,/CREDIBOM/),paymentStatus('Caixa Classic',n(state.cardRegular)||231.25,/CAIXA CLASSIC|PAGAMENTO CARTAO|PAG CARTAO|CARTAO CREDITO/)]}
 function budgetTotal(){return n(state.food)+n(state.transport)+n(state.meo)+n(state.bankSubs)+n(state.misc)}
