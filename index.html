@@ -59,7 +59,33 @@ function renderOverview(){
  document.querySelectorAll('[data-pay]').forEach(b=>b.onclick=()=>togglePayment(b.dataset.pay));
 }
 const pct=v=>(100*v).toFixed(1)+'%';
-function renderBudget(){const pay=payrollDeductions();document.getElementById('budget').innerHTML='<div class="card"><h2>Orçamento mensal</h2><div class="grid">'+field('food','Alimentação (€)',state.food)+field('transport','Transportes (€)',state.transport)+field('meo','Comunicações (€)',state.meo)+field('bankSubs','Serviços bancários (€)',state.bankSubs)+field('misc','Outros (€)',state.misc)+'</div><button class="action" id="saveBudget">Guardar orçamento</button></div><div class="card">'+row('Orçamento bancário planeado',eur(budgetTotal()))+row('Deduções no vencimento',eur(pay.total)+(pay.estimated?' · estimativa':' · confirmado'))+row('Total mensal considerado',eur(budgetTotal()+pay.total))+row('Gasto classificado este mês',eur(monthlySpend()))+row('Execução',(budgetTotal()+pay.total)?pct(monthlySpend()/(budgetTotal()+pay.total)):'—')+'</div>';bindFields();document.getElementById('saveBudget').onclick=()=>{save();renderAll()}}
+function monthlyExpenseSummary(){
+ const pay=payrollDeductions();
+ const fixed=pay.total+n(state.meo)+n(state.bankSubs)+n(state.carRegular)+n(state.cardRegular);
+ const variable=n(state.food)+n(state.transport)+n(state.misc);
+ return {pay,fixed,variable,total:fixed+variable};
+}
+function renderBudget(){
+ const x=monthlyExpenseSummary(),pay=x.pay;
+ document.getElementById('budget').innerHTML=
+ '<div class="card"><h2>Resumo das despesas mensais</h2>'+
+ row('Despesas fixas / recorrentes',eur(x.fixed))+
+ row('Despesas variáveis previstas',eur(x.variable))+
+ row('Despesa mensal total de referência',eur(x.total))+
+ '<p class="muted">As despesas fixas incluem as deduções no vencimento, MEO, encargos bancários, Credibom e Caixa Classic. As variáveis são Alimentação, Transportes e Outros.</p></div>'+
+ '<div class="card"><h2>Orçamento mensal variável/operacional</h2><div class="grid">'+
+ field('food','Alimentação (€)',state.food)+field('transport','Transportes (€)',state.transport)+field('meo','Comunicações (€)',state.meo)+field('bankSubs','Serviços bancários (€)',state.bankSubs)+field('misc','Outros (€)',state.misc)+
+ '</div><button class="action" id="saveBudget">Guardar orçamento</button></div>'+
+ '<div class="card">'+
+ row('Orçamento bancário planeado',eur(budgetTotal()))+
+ row('Deduções no vencimento',eur(pay.total)+(pay.estimated?' · estimativa':' · confirmado'))+
+ row('Compromissos de dívida',eur(n(state.carRegular)+n(state.cardRegular)))+
+ row('Total mensal de referência',eur(x.total))+
+ row('Gasto classificado este mês',eur(monthlySpend()))+
+ row('Execução operacional',(budgetTotal()+pay.total)?pct(monthlySpend()/(budgetTotal()+pay.total)):'—')+
+ '</div>';
+ bindFields();document.getElementById('saveBudget').onclick=()=>{save();renderAll()}
+}
 function renderDebts(){
  const goals=state.goals||[],car=state.debtEstimates?.car,card=state.debtEstimates?.card;
  document.getElementById('debts').innerHTML='<div class="card"><h2>Dívidas</h2>'+
