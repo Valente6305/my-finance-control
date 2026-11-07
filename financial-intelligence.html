@@ -24,14 +24,13 @@ function monthReview(s,p){
 function recurring(s,p){const m=new Map();for(const t of transactions(s)){if(n(t.amount)>=0||['Prestação','Transferência'].includes(classify(t,p)))continue;const label=norm(t.description).replace(/\d+/g,'').replace(/\s+/g,' ').trim().slice(0,42);if(label.length<4)continue;const a=m.get(label)||[];a.push(t);m.set(label,a)}return [...m].filter(([_,a])=>new Set(a.map(t=>month(t.date))).size>=2).map(([name,a])=>({name,months:new Set(a.map(t=>month(t.date))).size,avg:a.reduce((v,t)=>v-n(t.amount),0)/a.length})).sort((a,b)=>b.avg-a.avg).slice(0,10)}
 function loan(balance,annual,payment,extra=0){let b=Math.max(0,n(balance)-n(extra)),rate=n(annual)/1200,pay=n(payment);if(!b)return {valid:true,months:0,interest:0};if(pay<=b*rate)return {valid:false};let interest=0,months=0;while(b>.005&&months<1200){const i=b*rate;interest+=i;b=Math.max(0,b+i-Math.min(b+i,pay));months++}return {valid:months<1200,months,interest}}
 function automaticIncome(s){
- const rows=transactions(s).filter(t=>n(t.amount)>0&&(String(t.category||'')==='Salary'||/RAEGE|VENCIMENTO|SALARIO|SALÁRIO|ORDENADO/.test(norm(t.description))));
- const byMonth={};for(const t of rows){const m=month(t.date);byMonth[m]=(byMonth[m]||0)+n(t.amount)}
- const months=Object.keys(byMonth).sort();
- const current=byMonth[mmNow()]||0;
- const recent=months.slice(-6).map(m=>byMonth[m]).filter(v=>v>0).sort((a,b)=>a-b);
- const median=recent.length?(recent.length%2?recent[(recent.length-1)/2]:(recent[recent.length/2-1]+recent[recent.length/2])/2):0;
- const latest=months.length?byMonth[months[months.length-1]]:0;
- return {current,reference:median||latest||n(s.salary),months:recent.length,latestMonth:months.at(-1)||"",latest};
+ const rows=transactions(s).filter(t=>n(t.amount)>0&&/^T(F|R)I?\s+ASSOCIACAO\s+RAEGE$/.test(norm(t.description).replace(/\s+/g,' ').trim()));
+ const seed=n(s.salary)||2096.22;
+ const regular=rows.filter(t=>{const a=n(t.amount);return seed>0?a>=seed*.7&&a<=seed*1.35:a>=1200&&a<=3500});
+ const byMonth={};for(const t of regular){const m=month(t.date);const a=n(t.amount);if(!byMonth[m]||Math.abs(a-seed)<Math.abs(byMonth[m]-seed))byMonth[m]=a}
+ const months=Object.keys(byMonth).sort(),vals=months.slice(-6).map(m=>byMonth[m]).sort((a,b)=>a-b);
+ const current=byMonth[mmNow()]||0,median=vals.length?(vals.length%2?vals[(vals.length-1)/2]:(vals[vals.length/2-1]+vals[vals.length/2])/2):0;
+ return {current,reference:median||seed,months:vals.length,latestMonth:months.at(-1)||'',latest:months.length?byMonth[months.at(-1)]:0};
 }
 function automaticBankCash(s){
  if(Number.isFinite(Number(s.bankCashTotal)))return {value:Number(s.bankCashTotal),count:Number(s.bankCashCount)||0,asOf:s.bankCashAsOf||s.bankSync?.generated_at||"",source:"stored-total"};
