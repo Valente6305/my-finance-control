@@ -19,26 +19,43 @@ function regularSalaryCandidates(){
  return transactions().filter(t=>n(t.amount)>0&&/^T(F|R)I?\s+ASSOCIACAO\s+RAEGE$/.test(norm(t.description).replace(/\s+/g,' ').trim())).filter(t=>{const a=n(t.amount);return a>=seed*.7&&a<=seed*1.35})
 }
 function isSalary(t){return regularSalaryCandidates().some(x=>txkey(x)===txkey(t))}
-function monthlySpend(mm=currentMonth()){return transactions().filter(t=>month(t.date)===mm&&n(t.amount)<0&&!isTransfer(t)&&!isDebt(t)).reduce((a,t)=>a-n(t.amount),0)}
+function monthlySpend(mm=currentMonth()){const bank=transactions().filter(t=>month(t.date)===mm&&n(t.amount)<0&&!isTransfer(t)&&!isDebt(t)).reduce((a,t)=>a-n(t.amount),0),pay=payrollDeductions(mm);return bank+pay.total}
 function salaryDetected(){const seed=n(state.salary)||2096.22,c=regularSalaryCandidates().filter(t=>month(t.date)===currentMonth());if(!c.length)return 0;return n(c.sort((a,b)=>Math.abs(n(a.amount)-seed)-Math.abs(n(b.amount)-seed))[0].amount)}
 function paymentStatus(name,amount,re){const mm=currentMonth(),manual=state.paymentConfirmations?.[mm]?.[name];const hits=transactions().filter(t=>month(t.date)===mm&&n(t.amount)<0&&re.test(norm(t.description))&&Math.abs(-n(t.amount)-amount)<=1);return {name,amount,detected:hits.length>0||!!manual,bank:hits.length>0,manual:!hits.length&&!!manual}}
 function paymentStatuses(){return [paymentStatus('Credibom',n(state.carRegular)||210.74,/CREDIBOM/),paymentStatus('Caixa Classic',n(state.cardRegular)||231.25,/CAIXA CLASSIC|PAGAMENTO CARTAO|PAG CARTAO|CARTAO CREDITO/)]}
 function budgetTotal(){return n(state.food)+n(state.transport)+n(state.meo)+n(state.bankSubs)+n(state.misc)}
 function migrateGoal(){if((state.goals||[]).length===0&&n(state.scooterTarget)>0){state.goals=[{id:'legacy-scooter',name:'Trotinete',target:n(state.scooterTarget),saved:n(state.scooter)}];save()}}
 migrateGoal();
+function migratePayrollDeductions(){
+ state.payrollDeductions=state.payrollDeductions||{};
+ if(!state.payrollDeductions['2026-10'])state.payrollDeductions['2026-10']={source:'Vencimento VAC 10 2026.xlsx',confirmed:true,preDeductionNet:2606.10,bankNet:2086.34,items:[
+  {key:'rent',label:'Renda / Moradia',category:'Habitação e serviços',amount:306.57},
+  {key:'electricity',label:'Eletricidade',category:'Habitação e serviços',amount:39.77},
+  {key:'water',label:'Água',category:'Habitação e serviços',amount:21.42},
+  {key:'health',label:'Seguro de saúde',category:'Saúde',amount:152.00}
+ ]};
+ if(!state.payrollDeductionProfile)state.payrollDeductionProfile={sourceMonth:'2026-10',preDeductionNetReference:2606.10,items:state.payrollDeductions['2026-10'].items.map(x=>({...x}))};
+ save();
+}
+function payrollDeductions(mm=currentMonth()){
+ const exact=state.payrollDeductions?.[mm];if(exact)return {...exact,estimated:false,total:exact.items.reduce((a,x)=>a+n(x.amount),0)};
+ const p=state.payrollDeductionProfile;if(!p)return {items:[],total:0,estimated:true};
+ return {source:'Perfil recorrente de '+p.sourceMonth,estimated:true,preDeductionNet:p.preDeductionNetReference,items:p.items.map(x=>({...x})),total:p.items.reduce((a,x)=>a+n(x.amount),0)};
+}
+migratePayrollDeductions();
 const metric=(a,b,c='')=>'<div class="card metric"><small>'+a+'</small><strong>'+b+'</strong><span class="muted">'+c+'</span></div>';
 const row=(a,b)=>'<div class="row"><span>'+a+'</span><strong>'+b+'</strong></div>';
 const field=(key,label,value,step='.01')=>'<label>'+label+'<input data-field="'+key+'" type="number" step="'+step+'" value="'+n(value)+'"></label>';
 function renderOverview(){
- const spent=monthlySpend(),budget=budgetTotal(),salary=salaryDetected(),payments=paymentStatuses(),pending=payments.reduce((a,p)=>a+(p.detected?0:p.amount),0),available=n(state.balance)-n(state.reserve)-pending,age=state.bankSync?.generated_at?Math.floor((Date.now()-new Date(state.bankSync.generated_at))/86400000):null;
+ const payroll=payrollDeductions(),spent=monthlySpend(),budget=budgetTotal()+payroll.total,salary=salaryDetected(),payments=paymentStatuses(),pending=payments.reduce((a,p)=>a+(p.detected?0:p.amount),0),available=n(state.balance)-n(state.reserve)-pending,age=state.bankSync?.generated_at?Math.floor((Date.now()-new Date(state.bankSync.generated_at))/86400000):null;
  document.getElementById('overview').innerHTML='<div class="grid">'+metric('Saldo disponível',eur(state.balance),state.balanceDate?'Atualizado '+esc(state.balanceDate):'Saldo de referência')+metric('Reserva protegida',eur(state.reserve),'Objetivo de emergência')+metric('Orçamento usado',budget?pct(spent/budget):'—',eur(spent)+' de '+eur(budget))+metric('Disponível acima da reserva',eur(available),'Após prestações ainda não identificadas')+'</div>'+
- '<div class="card status '+(age===null||age>2?'':'ok')+'"><h2>Estado dos dados</h2>'+row('Sincronização bancária',age===null?'⚪ Sem importação confirmada':age<=2?'🟢 '+age+' dia(s)':'🟠 '+age+' dias')+row('Salário deste mês',salary>0?'🟢 Detetado · '+eur(salary):'⚪ Não detetado')+'</div>'+
+ '<div class="card status '+(age===null||age>2?'':'ok')+'"><h2>Estado dos dados</h2>'+row('Sincronização bancária',age===null?'⚪ Sem importação confirmada':age<=2?'🟢 '+age+' dia(s)':'🟠 '+age+' dias')+row('Crédito salarial no banco',salary>0?'🟢 Detetado · '+eur(salary):'⚪ Não detetado')+row('Deduções no vencimento',payroll.total?eur(payroll.total)+(payroll.estimated?' · estimativa':' · confirmado'):'—')+row('Rendimento antes destas deduções',salary>0?eur(salary+payroll.total):'—')+'</div>'+
  '<div class="card"><h2>Pagamentos</h2>'+payments.map(p=>row(esc(p.name),p.bank?'🟢 Movimento identificado':p.manual?'🟢 Confirmado manualmente':'🟠 Não identificado')+'<div style="margin-top:8px"><button class="action" data-pay="'+esc(p.name)+'">'+(p.manual?'Anular confirmação':p.detected?'Confirmado':'Confirmar pagamento')+'</button></div>').join('')+'</div>'+
  '<div class="card"><h2>Próxima decisão</h2><p>Para análise de património, amortização antecipada e projeções, usa a Financial Intelligence v7.</p><a class="button primary" href="./financial-intelligence.html">Abrir Intelligence v7 →</a></div>';
  document.querySelectorAll('[data-pay]').forEach(b=>b.onclick=()=>togglePayment(b.dataset.pay));
 }
 const pct=v=>(100*v).toFixed(1)+'%';
-function renderBudget(){document.getElementById('budget').innerHTML='<div class="card"><h2>Orçamento mensal</h2><div class="grid">'+field('food','Alimentação (€)',state.food)+field('transport','Transportes (€)',state.transport)+field('meo','Comunicações (€)',state.meo)+field('bankSubs','Serviços bancários (€)',state.bankSubs)+field('misc','Outros (€)',state.misc)+'</div><button class="action" id="saveBudget">Guardar orçamento</button></div><div class="card">'+row('Total planeado',eur(budgetTotal()))+row('Gasto classificado este mês',eur(monthlySpend()))+row('Execução',budgetTotal()?pct(monthlySpend()/budgetTotal()):'—')+'</div>';bindFields();document.getElementById('saveBudget').onclick=()=>{save();renderAll()}}
+function renderBudget(){const pay=payrollDeductions();document.getElementById('budget').innerHTML='<div class="card"><h2>Orçamento mensal</h2><div class="grid">'+field('food','Alimentação (€)',state.food)+field('transport','Transportes (€)',state.transport)+field('meo','Comunicações (€)',state.meo)+field('bankSubs','Serviços bancários (€)',state.bankSubs)+field('misc','Outros (€)',state.misc)+'</div><button class="action" id="saveBudget">Guardar orçamento</button></div><div class="card">'+row('Orçamento bancário planeado',eur(budgetTotal()))+row('Deduções no vencimento',eur(pay.total)+(pay.estimated?' · estimativa':' · confirmado'))+row('Total mensal considerado',eur(budgetTotal()+pay.total))+row('Gasto classificado este mês',eur(monthlySpend()))+row('Execução',(budgetTotal()+pay.total)?pct(monthlySpend()/(budgetTotal()+pay.total)):'—')+'</div>';bindFields();document.getElementById('saveBudget').onclick=()=>{save();renderAll()}}
 function renderDebts(){
  const goals=state.goals||[],car=state.debtEstimates?.car,card=state.debtEstimates?.card;
  document.getElementById('debts').innerHTML='<div class="card"><h2>Dívidas</h2>'+
