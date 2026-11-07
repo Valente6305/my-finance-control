@@ -37,6 +37,10 @@ function migratePayrollDeductions(){
  if(!state.payrollDeductionProfile)state.payrollDeductionProfile={sourceMonth:'2026-10',preDeductionNetReference:2606.10,items:state.payrollDeductions['2026-10'].items.map(x=>({...x}))};
  save();
 }
+function automaticSafetyMargin(){
+ const pay=payrollDeductions(),essential=pay.total+n(state.food)+n(state.transport)+n(state.meo)+n(state.bankSubs)+n(state.carRegular)+n(state.cardRegular);
+ return {essential,margin:Math.max(300,Math.round(essential*.10*100)/100)};
+}
 function payrollDeductions(mm=currentMonth()){
  const exact=state.payrollDeductions?.[mm];if(exact)return {...exact,estimated:false,total:exact.items.reduce((a,x)=>a+n(x.amount),0)};
  const p=state.payrollDeductionProfile;if(!p)return {items:[],total:0,estimated:true};
@@ -76,7 +80,7 @@ function renderTransactions(){
  document.getElementById('addTx').onclick=()=>{const date=document.getElementById('txDate').value,description=document.getElementById('txDesc').value.trim(),amount=Number(document.getElementById('txAmount').value);if(!date||!description||!Number.isFinite(amount))return toast('Preenche data, descrição e valor');state.transactions=[...(state.transactions||[]),{date,description,amount,category:'Manual'}];save();renderAll()};
 }
 function renderSettings(){
- document.getElementById('settings').innerHTML='<div class="card"><h2>Configuração essencial</h2><div class="grid">'+field('reserve','Reserva de emergência (€)',state.reserve)+field('workingBuffer','Margem de segurança (€)',state.workingBuffer)+'</div><p class="muted">O rendimento mensal é agora inferido automaticamente dos movimentos bancários classificados como salário.</p><button class="action" id="saveSettings">Guardar</button></div>'+
+ const sm=automaticSafetyMargin();document.getElementById('settings').innerHTML='<div class="card"><h2>Configuração essencial</h2><div class="grid">'+field('reserve','Reserva de emergência (€)',state.reserve)+'</div>'+row('Margem de segurança automática',eur(sm.margin))+row('Base: despesas essenciais mensais',eur(sm.essential))+'<p class="muted">A margem é calculada automaticamente como 10% das despesas essenciais, com mínimo de 300 €. É uma almofada operacional adicional à reserva de emergência.</p><p class="muted">O rendimento mensal é inferido automaticamente dos movimentos bancários classificados como salário.</p><button class="action" id="saveSettings">Guardar</button></div>'+
  '<div class="card"><h2>Dados e segurança</h2><button class="action" id="exportJson">Exportar backup JSON</button><p class="muted">Para backup encriptado e auditoria usa Intelligence v7.</p><details><summary>Advanced · manutenção de dados</summary><p class="muted">Utiliza apenas se souberes exatamente o que estás a fazer.</p><button class="action danger" id="clearImported">Remover movimentos bancários importados deste dispositivo</button></details></div>';
  bindFields();document.getElementById('saveSettings').onclick=()=>{save();renderAll()};document.getElementById('exportJson').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(state,null,2)],{type:'application/json'}));a.download='my-finance-control-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};document.getElementById('clearImported').onclick=()=>{if(!confirm('Remover apenas os movimentos bancários importados deste dispositivo? Ajustes manuais serão preservados.'))return;state.transactions=(state.transactions||[]).filter(t=>!t.import_id);delete state.bankSync;save();renderAll()};
 }
