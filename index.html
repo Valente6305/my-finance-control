@@ -44,7 +44,51 @@ button{font:inherit}.action{border:0;border-radius:10px;background:var(--navy);c
 details{margin-top:12px}footer{text-align:center;color:#7d8b98;font-size:.8rem;padding:18px}
 #toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#173d37;color:#fff;border-radius:12px;padding:12px 20px;display:none;z-index:30;box-shadow:0 8px 28px rgba(0,0,0,.2)}
 @media(max-width:640px){header{padding-top:24px;padding-bottom:24px}.metric{min-height:125px}.tabs{position:static}.row strong{text-align:left}.debt-grid{grid-template-columns:1fr}}
-</style></head><body><header><h1>◈ My Finance Control</h1><p>Controlo financeiro pessoal · EUR · dados locais</p></header><main><nav class="tabs" id="tabs"><button class="active" data-tab="overview">Overview</button><button data-tab="budget">Budget</button><button data-tab="debts">Debts & Goals</button><button data-tab="transactions">Transactions</button><button data-tab="settings">Settings</button><a class="button primary" href="./bank-accounts.html">Accounts ↗</a><a class="button primary" href="./financial-intelligence.html?v=modern-1">Intelligence v7 ↗</a></nav><section id="overview"></section><section id="budget" class="hide"></section><section id="debts" class="hide"></section><section id="transactions" class="hide"></section><section id="settings" class="hide"></section><footer>Dados privados neste dispositivo · saldos importados não são tempo real · estimativas não substituem confirmações bancárias</footer></main><div id="toast"></div><script>
+
+.mobile-nav,.mobile-sheet{display:none}
+@media(max-width:700px){
+ body{padding-bottom:calc(82px + env(safe-area-inset-bottom))}
+ header{padding:20px 16px 18px}
+ header h1{font-size:1.45rem}
+ header p{font-size:.85rem}
+ main{padding:12px 10px 28px}
+ .tabs{display:none}
+ .grid{grid-template-columns:1fr;gap:10px}
+ .card{border-radius:15px;padding:16px;margin-bottom:12px}
+ .metric{min-height:112px;padding:16px}
+ .metric strong{font-size:1.62rem}
+ .debt-grid{grid-template-columns:1fr;gap:10px}
+ .row{gap:7px;padding:9px 0}
+ .row>span,.row>strong{width:100%;text-align:left}
+ .action,.button{min-height:44px}
+ input,select{min-height:44px;font-size:16px}
+ .mobile-nav{display:grid;grid-template-columns:repeat(5,1fr);position:fixed;left:0;right:0;bottom:0;z-index:50;background:rgba(255,255,255,.96);backdrop-filter:blur(18px);border-top:1px solid #d9e3eb;padding:7px 6px calc(7px + env(safe-area-inset-bottom));box-shadow:0 -8px 24px rgba(20,40,60,.12)}
+ .mobile-nav button{border:0;background:transparent;color:#607487;padding:5px 2px;font-size:.69rem;font-weight:700;display:flex;flex-direction:column;align-items:center;gap:3px;min-width:0}
+ .mobile-nav button .ico{font-size:1.25rem;line-height:1}
+ .mobile-nav button.active{color:var(--blue)}
+ .mobile-sheet{position:fixed;left:10px;right:10px;bottom:calc(72px + env(safe-area-inset-bottom));z-index:60;background:#fff;border:1px solid var(--line);border-radius:18px;padding:10px;box-shadow:0 18px 50px rgba(15,35,55,.24)}
+ .mobile-sheet.open{display:block}
+ .mobile-sheet a,.mobile-sheet button{display:flex;width:100%;align-items:center;gap:10px;padding:13px;border:0;background:transparent;border-radius:10px;color:var(--ink);text-decoration:none;font:inherit;font-weight:700;text-align:left}
+ .mobile-sheet a:hover,.mobile-sheet button:hover{background:#f2f6f9}
+ .mobile-sheet .sep{height:1px;background:#e8edf1;margin:5px 0}
+ .scroll{margin-left:-2px;margin-right:-2px}
+ table{min-width:640px}
+}
+</style></head><body><header><h1>◈ My Finance Control</h1><p>Controlo financeiro pessoal · EUR · dados locais</p></header><main><nav class="tabs" id="tabs"><button class="active" data-tab="overview">Overview</button><button data-tab="budget">Budget</button><button data-tab="debts">Debts & Goals</button><button data-tab="transactions">Transactions</button><button data-tab="settings">Settings</button><a class="button primary" href="./bank-accounts.html">Accounts ↗</a><a class="button primary" href="./financial-intelligence.html?v=mobile-1">Intelligence v7 ↗</a></nav><section id="overview"></section><section id="budget" class="hide"></section><section id="debts" class="hide"></section><section id="transactions" class="hide"></section><section id="settings" class="hide"></section><footer>Dados privados neste dispositivo · saldos importados não são tempo real · estimativas não substituem confirmações bancárias</footer></main>
+<div class="mobile-sheet" id="mobileSheet" aria-hidden="true">
+  <button data-mobile-tab="settings">⚙️ Definições</button>
+  <div class="sep"></div>
+  <a href="./bank-accounts.html">🏦 Contas bancárias</a>
+  <a href="./financial-intelligence.html?v=mobile-1">🧠 Intelligence v7</a>
+</div>
+<nav class="mobile-nav" id="mobileNav" aria-label="Navegação principal">
+  <button class="active" data-mobile-tab="overview"><span class="ico">⌂</span><span>Overview</span></button>
+  <button data-mobile-tab="budget"><span class="ico">◫</span><span>Budget</span></button>
+  <button data-mobile-tab="debts"><span class="ico">◎</span><span>Dívidas</span></button>
+  <button data-mobile-tab="transactions"><span class="ico">↕</span><span>Movimentos</span></button>
+  <button data-mobile-more><span class="ico">•••</span><span>Mais</span></button>
+</nav>
+<div id="toast"></div><script>
 'use strict';
 const KEY='finance-control-public-v2';
 const defaults={salary:0,balance:0,balanceDate:'',reserve:0,cardBalance:0,cardAPR:0,cardRegular:231.25,carBalance:0,carAPR:0,carRegular:210.74,meo:0,bankSubs:0,food:0,transport:0,misc:0,workingBuffer:0,transactions:[],paymentConfirmations:{},goals:[]};
@@ -113,7 +157,7 @@ function renderOverview(){
  row('Rendimento antes das deduções',salary>0?eur(salary+payroll.total):'—')+
  '</div>'+
  '<div class="card accent-green"><h2>Pagamentos do mês</h2>'+payments.map(p=>row(esc(p.name),(p.bank?badge('Identificado no banco','good'):p.manual?badge('Confirmado manualmente','good'):badge('Por confirmar','warn'))+'<div style="margin-top:8px"><button class="action" data-pay="'+esc(p.name)+'">'+(p.manual?'Anular confirmação':p.detected?'Confirmado':'Confirmar pagamento')+'</button></div>')).join('')+'</div>'+
- '<div class="card accent-purple"><h2>Próxima decisão</h2><p class="muted">Património, amortização antecipada, projeções e saúde financeira estão concentrados na Financial Intelligence.</p><a class="button primary" href="./financial-intelligence.html?v=modern-1">Abrir Intelligence v7 →</a></div>';
+ '<div class="card accent-purple"><h2>Próxima decisão</h2><p class="muted">Património, amortização antecipada, projeções e saúde financeira estão concentrados na Financial Intelligence.</p><a class="button primary" href="./financial-intelligence.html?v=mobile-1">Abrir Intelligence v7 →</a></div>';
  document.querySelectorAll('[data-pay]').forEach(b=>b.onclick=()=>togglePayment(b.dataset.pay));
 }
 const pct=v=>(100*v).toFixed(1)+'%';
@@ -176,6 +220,18 @@ function renderSettings(){
 function bindFields(){document.querySelectorAll('[data-field]').forEach(e=>e.onchange=()=>{state[e.dataset.field]=n(e.value)})}
 function togglePayment(name){const mm=currentMonth();state.paymentConfirmations=state.paymentConfirmations||{};state.paymentConfirmations[mm]=state.paymentConfirmations[mm]||{};if(state.paymentConfirmations[mm][name])delete state.paymentConfirmations[mm][name];else state.paymentConfirmations[mm][name]={amount:name==='Credibom'?n(state.carRegular)||210.74:n(state.cardRegular)||231.25,confirmedAt:new Date().toISOString()};save();renderAll()}
 function renderAll(){state=load();renderOverview();renderBudget();renderDebts();renderTransactions();renderSettings()}
-document.getElementById('tabs').querySelectorAll('button[data-tab]').forEach(b=>b.onclick=()=>{document.querySelectorAll('main>section').forEach(s=>s.classList.add('hide'));document.getElementById(b.dataset.tab).classList.remove('hide');document.querySelectorAll('#tabs button').forEach(x=>x.classList.remove('active'));b.classList.add('active')});
+function activateTab(tab){
+ document.querySelectorAll('main>section').forEach(sec=>sec.classList.add('hide'));
+ const target=document.getElementById(tab);if(target)target.classList.remove('hide');
+ document.querySelectorAll('#tabs button[data-tab]').forEach(x=>x.classList.toggle('active',x.dataset.tab===tab));
+ document.querySelectorAll('#mobileNav [data-mobile-tab]').forEach(x=>x.classList.toggle('active',x.dataset.mobileTab===tab));
+ const sheet=document.getElementById('mobileSheet');if(sheet){sheet.classList.remove('open');sheet.setAttribute('aria-hidden','true')}
+ window.scrollTo({top:0,behavior:'smooth'});
+}
+document.getElementById('tabs').querySelectorAll('button[data-tab]').forEach(b=>b.onclick=()=>activateTab(b.dataset.tab));
+document.querySelectorAll('[data-mobile-tab]').forEach(b=>b.onclick=()=>activateTab(b.dataset.mobileTab));
+const moreBtn=document.querySelector('[data-mobile-more]'),sheet=document.getElementById('mobileSheet');
+if(moreBtn&&sheet)moreBtn.onclick=()=>{const open=sheet.classList.toggle('open');sheet.setAttribute('aria-hidden',String(!open));moreBtn.classList.toggle('active',open)};
+document.addEventListener('click',e=>{if(sheet?.classList.contains('open')&&!sheet.contains(e.target)&&!moreBtn.contains(e.target)){sheet.classList.remove('open');sheet.setAttribute('aria-hidden','true');moreBtn.classList.remove('active')}});
 renderAll();window.addEventListener('pageshow',renderAll);window.addEventListener('focus',renderAll);document.addEventListener('visibilitychange',()=>{if(!document.hidden)renderAll()});window.addEventListener('storage',e=>{if(e.key===KEY)renderAll()});
 </script></body></html>
