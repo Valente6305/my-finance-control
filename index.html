@@ -1,6 +1,50 @@
-<!doctype html><html lang="pt"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#10243a"><title>My Finance Control · 2026.11.07.3</title><meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0"><link rel="manifest" href="manifest.webmanifest"><style>
-:root{font-family:system-ui,-apple-system,sans-serif;color:#172b3c;background:#f2f5f8}*{box-sizing:border-box}body{margin:0}header{background:#10243a;color:#fff;padding:24px max(18px,calc((100vw - 1080px)/2))}header h1{margin:0;font-size:1.6rem}header p{margin:6px 0 0;color:#d3deea}main{max-width:1080px;margin:auto;padding:16px 14px 50px}.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}.tabs button,.button{border:0;border-radius:8px;padding:10px 13px;background:#dfe7ee;color:#173049;font:inherit;cursor:pointer;text-decoration:none}.tabs .active,.button.primary{background:#10243a;color:white}.hide{display:none}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}.card{background:white;border:1px solid #dde5ec;border-radius:13px;padding:17px;margin-bottom:14px}.metric strong{font-size:1.55rem;display:block;margin:5px 0}.muted{color:#65798b;font-size:.88rem}.row{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid #edf0f2;flex-wrap:wrap}.row:last-child{border:0}.ok{color:#16724f}.warn{color:#9c600e}.bad{color:#a72b36}.status{border-left:6px solid #bd7a16}.status.ok{border-left-color:#18845e}.status.bad{border-left-color:#b42332}label{display:block;margin:9px 0}input,select{width:100%;padding:9px;border:1px solid #aab9c7;border-radius:7px;font:inherit}button{font:inherit}.action{border:0;border-radius:8px;background:#10243a;color:#fff;padding:10px 13px;cursor:pointer}.danger{background:#9f2632}.scroll{overflow:auto}table{width:100%;border-collapse:collapse}td,th{padding:8px;text-align:left;border-bottom:1px solid #e7ebef}details{margin-top:12px}footer{text-align:center;color:#748294;font-size:.8rem;padding:16px}#toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#173d37;color:#fff;border-radius:9px;padding:11px 18px;display:none;z-index:20}
-</style></head><body><header><h1>◈ My Finance Control</h1><p>Controlo financeiro pessoal · EUR · dados locais</p></header><main><nav class="tabs" id="tabs"><button class="active" data-tab="overview">Overview</button><button data-tab="budget">Budget</button><button data-tab="debts">Debts & Goals</button><button data-tab="transactions">Transactions</button><button data-tab="settings">Settings</button><a class="button primary" href="./bank-accounts.html">Accounts ↗</a><a class="button primary" href="./financial-intelligence.html?v=20261107-3">Intelligence v7 ↗</a></nav><section id="overview"></section><section id="budget" class="hide"></section><section id="debts" class="hide"></section><section id="transactions" class="hide"></section><section id="settings" class="hide"></section><footer>Dados privados neste dispositivo · saldos importados não são tempo real · estimativas não substituem confirmações bancárias</footer></main><div id="toast"></div><script>
+<!doctype html><html lang="pt"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#10243a"><title>My Finance Control · Modern</title><meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0"><link rel="manifest" href="manifest.webmanifest"><style>
+:root{
+ --navy:#0b1f33;--navy2:#123a5a;--blue:#1976d2;--blue-soft:#eaf3ff;
+ --green:#11865b;--green-soft:#e8f7f0;--red:#c43d4d;--red-soft:#fff0f2;
+ --amber:#b56a00;--amber-soft:#fff6df;--purple:#7254c7;--purple-soft:#f2efff;
+ --ink:#14283c;--muted:#6d7e8e;--line:#dce5ed;--bg:#eef3f7;--white:#fff;
+ font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+ color:var(--ink);background:var(--bg)
+}
+*{box-sizing:border-box}
+body{margin:0;background:linear-gradient(180deg,#edf3f8 0,#f7f9fb 320px,#f3f6f8 100%);min-height:100vh}
+header{background:linear-gradient(135deg,var(--navy) 0%,#123b5c 58%,#1e5d7c 100%);color:#fff;padding:30px max(18px,calc((100vw - 1160px)/2));box-shadow:0 10px 30px rgba(11,31,51,.18)}
+header h1{margin:0;font-size:1.85rem;letter-spacing:-.025em}header p{margin:7px 0 0;color:#cfe0ef;font-size:.95rem}
+main{max-width:1160px;margin:auto;padding:20px 14px 60px}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:-2px 0 22px;position:sticky;top:0;z-index:15;padding:10px 0;background:rgba(244,247,249,.92);backdrop-filter:blur(12px)}
+.tabs button,.button{border:1px solid #d5e0e9;border-radius:999px;padding:10px 15px;background:#fff;color:#28445d;font:inherit;font-weight:650;cursor:pointer;text-decoration:none;transition:.18s ease;box-shadow:0 2px 7px rgba(22,50,72,.05)}
+.tabs button:hover,.button:hover{transform:translateY(-1px);border-color:#aac2d5}
+.tabs .active{background:var(--navy);border-color:var(--navy);color:#fff}.button.primary{background:var(--purple);border-color:var(--purple);color:#fff}
+.hide{display:none}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.card{background:rgba(255,255,255,.97);border:1px solid var(--line);border-radius:18px;padding:20px;margin-bottom:16px;box-shadow:0 7px 24px rgba(30,55,77,.07)}
+.card h2{font-size:1.08rem;margin:0 0 15px;letter-spacing:-.01em}.card h3{margin:0 0 8px}
+.card.accent-green{border-top:4px solid var(--green)}.card.accent-red{border-top:4px solid var(--red)}.card.accent-amber{border-top:4px solid var(--amber)}.card.accent-purple{border-top:4px solid var(--purple)}.card.accent-blue{border-top:4px solid var(--blue)}
+.metric{position:relative;overflow:hidden;min-height:142px;padding:20px}.metric:after{content:"";position:absolute;width:92px;height:92px;border-radius:50%;right:-32px;top:-30px;background:currentColor;opacity:.07}
+.metric small{font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.055em;font-size:.72rem}
+.metric strong{font-size:1.85rem;display:block;margin:10px 0 7px;letter-spacing:-.035em;color:var(--ink)}
+.metric.good{border-top:4px solid var(--green);background:linear-gradient(145deg,#fff,var(--green-soft))}
+.metric.debt{border-top:4px solid var(--red);background:linear-gradient(145deg,#fff,var(--red-soft))}
+.metric.attention{border-top:4px solid var(--amber);background:linear-gradient(145deg,#fff,var(--amber-soft))}
+.metric.info{border-top:4px solid var(--blue);background:linear-gradient(145deg,#fff,var(--blue-soft))}
+.metric.intel{border-top:4px solid var(--purple);background:linear-gradient(145deg,#fff,var(--purple-soft))}
+.muted{color:var(--muted);font-size:.88rem;line-height:1.45}
+.row{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;padding:10px 0;border-bottom:1px solid #edf1f4;flex-wrap:wrap}.row:last-child{border:0}.row strong{text-align:right}
+.ok{color:var(--green)}.warn{color:var(--amber)}.bad{color:var(--red)}
+.status{border-left:0;border-top:4px solid var(--amber)}.status.ok{border-top-color:var(--green)}.status.bad{border-top-color:var(--red)}
+.badge{display:inline-flex;align-items:center;padding:5px 9px;border-radius:999px;font-size:.74rem;font-weight:800;letter-spacing:.02em}
+.badge.good{background:var(--green-soft);color:var(--green)}.badge.warn{background:var(--amber-soft);color:var(--amber)}.badge.bad{background:var(--red-soft);color:var(--red)}.badge.info{background:var(--blue-soft);color:var(--blue)}.badge.purple{background:var(--purple-soft);color:var(--purple)}
+.progress{height:10px;background:#e8edf2;border-radius:999px;overflow:hidden;margin:8px 0 3px}.progress>span{height:100%;display:block;border-radius:inherit;background:linear-gradient(90deg,var(--blue),#4ea5ee)}.progress.good>span{background:linear-gradient(90deg,var(--green),#48b98a)}.progress.bad>span{background:linear-gradient(90deg,var(--red),#e36f7c)}
+.debt-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:16px}.debt-card{background:#fff;border:1px solid #f0cdd2;border-radius:18px;padding:18px;box-shadow:0 7px 20px rgba(100,35,45,.06);border-top:4px solid var(--red)}
+.goal-card{padding:14px 0;border-bottom:1px solid #edf1f4}.goal-card:last-child{border-bottom:0}.goal-head{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:7px}
+label{display:block;margin:10px 0;font-weight:650;color:#3d5367}input,select{width:100%;padding:10px 11px;border:1px solid #b9c8d4;border-radius:10px;font:inherit;background:#fbfcfd;color:var(--ink);outline:none}input:focus,select:focus{border-color:#5d9ed3;box-shadow:0 0 0 3px rgba(25,118,210,.12)}
+button{font:inherit}.action{border:0;border-radius:10px;background:var(--navy);color:#fff;padding:10px 14px;cursor:pointer;font-weight:700}.action:hover{filter:brightness(1.08)}.danger{background:var(--red)}
+.scroll{overflow:auto;border-radius:12px}table{width:100%;border-collapse:collapse}td,th{padding:10px;text-align:left;border-bottom:1px solid #e7edf2}th{font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);background:#f7f9fb}
+details{margin-top:12px}footer{text-align:center;color:#7d8b98;font-size:.8rem;padding:18px}
+#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#173d37;color:#fff;border-radius:12px;padding:12px 20px;display:none;z-index:30;box-shadow:0 8px 28px rgba(0,0,0,.2)}
+@media(max-width:640px){header{padding-top:24px;padding-bottom:24px}.metric{min-height:125px}.tabs{position:static}.row strong{text-align:left}.debt-grid{grid-template-columns:1fr}}
+</style></head><body><header><h1>◈ My Finance Control</h1><p>Controlo financeiro pessoal · EUR · dados locais</p></header><main><nav class="tabs" id="tabs"><button class="active" data-tab="overview">Overview</button><button data-tab="budget">Budget</button><button data-tab="debts">Debts & Goals</button><button data-tab="transactions">Transactions</button><button data-tab="settings">Settings</button><a class="button primary" href="./bank-accounts.html">Accounts ↗</a><a class="button primary" href="./financial-intelligence.html?v=modern-1">Intelligence v7 ↗</a></nav><section id="overview"></section><section id="budget" class="hide"></section><section id="debts" class="hide"></section><section id="transactions" class="hide"></section><section id="settings" class="hide"></section><footer>Dados privados neste dispositivo · saldos importados não são tempo real · estimativas não substituem confirmações bancárias</footer></main><div id="toast"></div><script>
 'use strict';
 const KEY='finance-control-public-v2';
 const defaults={salary:0,balance:0,balanceDate:'',reserve:0,cardBalance:0,cardAPR:0,cardRegular:231.25,carBalance:0,carAPR:0,carRegular:210.74,meo:0,bankSubs:0,food:0,transport:0,misc:0,workingBuffer:0,transactions:[],paymentConfirmations:{},goals:[]};
@@ -47,15 +91,29 @@ function payrollDeductions(mm=currentMonth()){
  return {source:'Perfil recorrente de '+p.sourceMonth,estimated:true,preDeductionNet:p.preDeductionNetReference,items:p.items.map(x=>({...x})),total:p.items.reduce((a,x)=>a+n(x.amount),0)};
 }
 migratePayrollDeductions();
-const metric=(a,b,c='')=>'<div class="card metric"><small>'+a+'</small><strong>'+b+'</strong><span class="muted">'+c+'</span></div>';
+const metric=(a,b,c='',tone='info')=>'<div class="card metric '+tone+'"><small>'+a+'</small><strong>'+b+'</strong><span class="muted">'+c+'</span></div>';
+const badge=(t,tone='info')=>'<span class="badge '+tone+'">'+t+'</span>';
+const progress=(v,tone='')=>'<div class="progress '+tone+'"><span style="width:'+Math.max(0,Math.min(100,n(v)))+'%"></span></div>';
 const row=(a,b)=>'<div class="row"><span>'+a+'</span><strong>'+b+'</strong></div>';
 const field=(key,label,value,step='.01')=>'<label>'+label+'<input data-field="'+key+'" type="number" step="'+step+'" value="'+n(value)+'"></label>';
 function renderOverview(){
  const payroll=payrollDeductions(),spent=monthlySpend(),budget=budgetTotal()+payroll.total,salary=salaryDetected(),payments=paymentStatuses(),pending=payments.reduce((a,p)=>a+(p.detected?0:p.amount),0),available=n(state.balance)-n(state.reserve)-pending,age=state.bankSync?.generated_at?Math.floor((Date.now()-new Date(state.bankSync.generated_at))/86400000):null;
- document.getElementById('overview').innerHTML='<div class="grid">'+metric('Saldo disponível',eur(state.balance),state.balanceDate?'Atualizado '+esc(state.balanceDate):'Saldo de referência')+metric('Reserva protegida',eur(state.reserve),'Objetivo de emergência')+metric('Orçamento usado',budget?pct(spent/budget):'—',eur(spent)+' de '+eur(budget))+metric('Disponível acima da reserva',eur(available),'Após prestações ainda não identificadas')+'</div>'+
- '<div class="card status '+(age===null||age>2?'':'ok')+'"><h2>Estado dos dados</h2>'+row('Sincronização bancária',age===null?'⚪ Sem importação confirmada':age<=2?'🟢 '+age+' dia(s)':'🟠 '+age+' dias')+row('Crédito salarial no banco',salary>0?'🟢 Detetado · '+eur(salary):'⚪ Não detetado')+row('Deduções no vencimento',payroll.total?eur(payroll.total)+(payroll.estimated?' · estimativa':' · confirmado'):'—')+row('Rendimento antes destas deduções',salary>0?eur(salary+payroll.total):'—')+'</div>'+
- '<div class="card"><h2>Pagamentos</h2>'+payments.map(p=>row(esc(p.name),p.bank?'🟢 Movimento identificado':p.manual?'🟢 Confirmado manualmente':'🟠 Não identificado')+'<div style="margin-top:8px"><button class="action" data-pay="'+esc(p.name)+'">'+(p.manual?'Anular confirmação':p.detected?'Confirmado':'Confirmar pagamento')+'</button></div>').join('')+'</div>'+
- '<div class="card"><h2>Próxima decisão</h2><p>Para análise de património, amortização antecipada e projeções, usa a Financial Intelligence v7.</p><a class="button primary" href="./financial-intelligence.html?v=20261107-3">Abrir Intelligence v7 →</a></div>';
+ const reservePct=n(state.reserve)?Math.min(100,n(state.balance)/n(state.reserve)*100):0,budgetPct=budget?spent/budget*100:0;
+ document.getElementById('overview').innerHTML=
+ '<div class="grid">'+
+ metric('Dinheiro disponível',eur(state.balance),state.balanceDate?'Atualizado '+esc(state.balanceDate):'Saldo de referência','info')+
+ metric('Reserva protegida',eur(state.reserve),reservePct>=100?'Objetivo coberto':'Cobertura atual '+pct(reservePct/100),reservePct>=100?'good':'attention')+
+ metric('Execução do mês',budget?pct(spent/budget):'—',eur(spent)+' de '+eur(budget),budgetPct<=100?'good':'debt')+
+ metric('Livre acima da reserva',eur(available),'Após compromissos ainda pendentes',available>=0?'good':'debt')+
+ '</div>'+
+ '<div class="card accent-blue"><h2>Estado financeiro do mês</h2>'+
+ row('Sincronização bancária',age===null?badge('Sem importação','warn'):age<=2?badge('Atualizada · '+age+' dia(s)','good'):badge('Desatualizada · '+age+' dias','warn'))+
+ row('Crédito salarial',salary>0?badge('Detetado','good')+' '+eur(salary):badge('Ainda não detetado','warn'))+
+ row('Deduções no vencimento',payroll.total?eur(payroll.total)+' '+(payroll.estimated?badge('Estimativa','warn'):badge('Confirmado','good')):'—')+
+ row('Rendimento antes das deduções',salary>0?eur(salary+payroll.total):'—')+
+ '</div>'+
+ '<div class="card accent-green"><h2>Pagamentos do mês</h2>'+payments.map(p=>row(esc(p.name),(p.bank?badge('Identificado no banco','good'):p.manual?badge('Confirmado manualmente','good'):badge('Por confirmar','warn'))+'<div style="margin-top:8px"><button class="action" data-pay="'+esc(p.name)+'">'+(p.manual?'Anular confirmação':p.detected?'Confirmado':'Confirmar pagamento')+'</button></div>')).join('')+'</div>'+
+ '<div class="card accent-purple"><h2>Próxima decisão</h2><p class="muted">Património, amortização antecipada, projeções e saúde financeira estão concentrados na Financial Intelligence.</p><a class="button primary" href="./financial-intelligence.html?v=modern-1">Abrir Intelligence v7 →</a></div>';
  document.querySelectorAll('[data-pay]').forEach(b=>b.onclick=()=>togglePayment(b.dataset.pay));
 }
 const pct=v=>(100*v).toFixed(1)+'%';
@@ -66,37 +124,42 @@ function monthlyExpenseSummary(){
  return {pay,fixed,variable,total:fixed+variable};
 }
 function renderBudget(){
- const x=monthlyExpenseSummary(),pay=x.pay;
+ const x=monthlyExpenseSummary(),pay=x.pay,opBudget=budgetTotal()+pay.total,exec=opBudget?monthlySpend()/opBudget*100:0;
  document.getElementById('budget').innerHTML=
- '<div class="card"><h2>Resumo das despesas mensais</h2>'+
- row('Despesas fixas / recorrentes',eur(x.fixed))+
- row('Despesas variáveis previstas',eur(x.variable))+
- row('Despesa mensal total de referência',eur(x.total))+
- '<p class="muted">As despesas fixas incluem as deduções no vencimento, MEO, encargos bancários, Credibom e Caixa Classic. As variáveis são Alimentação, Transportes e Outros.</p></div>'+
- '<div class="card"><h2>Orçamento mensal variável/operacional</h2><div class="grid">'+
+ '<div class="grid">'+
+ metric('Fixas / recorrentes',eur(x.fixed),'Compromissos mensais','debt')+
+ metric('Variáveis previstas',eur(x.variable),'Alimentação · transportes · outros','attention')+
+ metric('Total mensal',eur(x.total),'Referência atual','info')+
+ metric('Execução operacional',opBudget?pct(monthlySpend()/opBudget):'—',eur(monthlySpend())+' realizado',exec<=100?'good':'debt')+
+ '</div>'+
+ '<div class="card accent-blue"><h2>Orçamento mensal operacional</h2><div class="grid">'+
  field('food','Alimentação (€)',state.food)+field('transport','Transportes (€)',state.transport)+field('meo','Comunicações (€)',state.meo)+field('bankSubs','Serviços bancários (€)',state.bankSubs)+field('misc','Outros (€)',state.misc)+
  '</div><button class="action" id="saveBudget">Guardar orçamento</button></div>'+
- '<div class="card">'+
+ '<div class="card accent-amber"><h2>Composição do mês</h2>'+
  row('Orçamento bancário planeado',eur(budgetTotal()))+
- row('Deduções no vencimento',eur(pay.total)+(pay.estimated?' · estimativa':' · confirmado'))+
+ row('Deduções no vencimento',eur(pay.total)+' '+(pay.estimated?badge('Estimativa','warn'):badge('Confirmado','good')))+
  row('Compromissos de dívida',eur(n(state.carRegular)+n(state.cardRegular)))+
  row('Total mensal de referência',eur(x.total))+
- row('Gasto classificado este mês',eur(monthlySpend()))+
- row('Execução operacional',(budgetTotal()+pay.total)?pct(monthlySpend()/(budgetTotal()+pay.total)):'—')+
+ progress(exec,exec<=100?'good':'bad')+
  '</div>';
  bindFields();document.getElementById('saveBudget').onclick=()=>{save();renderAll()}
 }
 function renderDebts(){
- const goals=state.goals||[],car=state.debtEstimates?.car,card=state.debtEstimates?.card;
- document.getElementById('debts').innerHTML='<div class="card"><h2>Dívidas</h2>'+
- row('Credibom · saldo estimado',car?eur(car.balance)+' · automático':'⚪ Sem referência calibrada · '+eur(state.carBalance))+
- row('Credibom · pagamentos identificados',car?car.matches+' · '+eur(car.payments):'—')+
- row('Credibom · atualizado até',car?esc(car.asOf):'—')+
- row('Caixa Classic · saldo estimado',card?eur(card.balance)+' · automático':'⚪ Sem referência calibrada · '+eur(state.cardBalance))+
- row('Caixa Classic · pagamentos identificados',card?card.matches+' · '+eur(card.payments):'—')+
- row('Caixa Classic · atualizado até',card?esc(card.asOf):'—')+
- '<div class="grid">'+field('carAPR','Credibom · taxa anual (%)',state.carAPR)+field('carRegular','Credibom · prestação (€)',state.carRegular)+field('cardAPR','Caixa Classic · taxa anual (%)',state.cardAPR)+field('cardRegular','Caixa Classic · pagamento mensal (€)',state.cardRegular)+'</div><button class="action" id="saveDebts">Guardar taxas/prestações</button> <a class="button primary" href="./bank-accounts.html">Calibrar saldos em Accounts →</a><p class="muted">Os saldos são recalculados a partir da referência calibrada e dos pagamentos identificados nos ficheiros .mfc. Para Caixa Classic, compras novas podem aumentar a dívida e não são inferidas automaticamente a partir do limite disponível.</p></div>'+
- '<div class="card"><h2>Objetivos</h2>'+ (goals.length?goals.map((g,i)=>'<div class="row"><span><input data-goal-name="'+i+'" value="'+esc(g.name)+'" aria-label="Nome do objetivo"></span><span><input data-goal-saved="'+i+'" type="number" step=".01" value="'+n(g.saved)+'" aria-label="Valor reservado"></span><span><input data-goal-target="'+i+'" type="number" step=".01" value="'+n(g.target)+'" aria-label="Meta"></span><button class="action danger" data-goal-remove="'+i+'">Remover</button></div>').join(''):'<p class="muted">Sem objetivos ativos.</p>')+'<button class="action" id="addGoal">Adicionar objetivo</button> <button class="action" id="saveGoals">Guardar objetivos</button></div>';
+ const goals=state.goals||[],car=state.debtEstimates?.car,card=state.debtEstimates?.card,carBal=car?n(car.balance):n(state.carBalance),cardBal=card?n(card.balance):n(state.cardBalance);
+ document.getElementById('debts').innerHTML=
+ '<div class="debt-grid">'+
+ '<div class="debt-card"><div class="goal-head"><h2>Caixa Classic</h2>'+badge(cardBal>0?'Prioridade alta':'Liquidado',cardBal>0?'bad':'good')+'</div>'+
+ row('Saldo estimado',eur(cardBal))+row('Pagamento mensal',eur(state.cardRegular))+row('Taxa anual',n(state.cardAPR).toFixed(2)+'%')+
+ (card?row('Pagamentos identificados',card.matches+' · '+eur(card.payments))+row('Atualizado até',esc(card.asOf)):'')+
+ '<p class="muted">Crédito revolving. Evitar novas utilizações enquanto existir saldo.</p></div>'+
+ '<div class="debt-card"><div class="goal-head"><h2>Credibom</h2>'+badge(carBal>0?'Em amortização':'Liquidado',carBal>0?'warn':'good')+'</div>'+
+ row('Saldo estimado',eur(carBal))+row('Prestação',eur(state.carRegular))+row('Taxa anual',n(state.carAPR).toFixed(2)+'%')+
+ (car?row('Pagamentos identificados',car.matches+' · '+eur(car.payments))+row('Atualizado até',esc(car.asOf)):'')+
+ '</div></div>'+
+ '<div class="card accent-red"><h2>Parâmetros das dívidas</h2><div class="grid">'+field('carAPR','Credibom · taxa anual (%)',state.carAPR)+field('carRegular','Credibom · prestação (€)',state.carRegular)+field('cardAPR','Caixa Classic · taxa anual (%)',state.cardAPR)+field('cardRegular','Caixa Classic · pagamento mensal (€)',state.cardRegular)+'</div><button class="action" id="saveDebts">Guardar taxas/prestações</button> <a class="button" href="./bank-accounts.html">Calibrar saldos →</a></div>'+
+ '<div class="card accent-green"><div class="goal-head"><h2>Objetivos</h2>'+badge(goals.length+' ativo(s)','info')+'</div>'+
+ (goals.length?goals.map((g,i)=>{const pc=n(g.target)?Math.min(100,n(g.saved)/n(g.target)*100):0;return '<div class="goal-card"><div class="goal-head"><strong>'+esc(g.name)+'</strong><span>'+eur(g.saved)+' / '+eur(g.target)+'</span></div>'+progress(pc,'good')+'<div class="grid"><label>Nome<input data-goal-name="'+i+'" value="'+esc(g.name)+'"></label><label>Reservado (€)<input data-goal-saved="'+i+'" type="number" step=".01" value="'+n(g.saved)+'"></label><label>Meta (€)<input data-goal-target="'+i+'" type="number" step=".01" value="'+n(g.target)+'"></label></div><button class="action danger" data-goal-remove="'+i+'">Remover</button></div>'}).join(''):'<p class="muted">Sem objetivos ativos.</p>')+
+ '<div style="margin-top:14px"><button class="action" id="addGoal">Adicionar objetivo</button> <button class="action" id="saveGoals">Guardar objetivos</button></div></div>';
  bindFields();document.getElementById('saveDebts').onclick=()=>{save();renderAll()};document.getElementById('addGoal').onclick=()=>{state.goals=[...(state.goals||[]),{id:'g'+Date.now(),name:'Novo objetivo',saved:0,target:0}];save();renderAll()};document.getElementById('saveGoals').onclick=saveGoals;document.querySelectorAll('[data-goal-remove]').forEach(b=>b.onclick=()=>{state.goals.splice(Number(b.dataset.goalRemove),1);save();renderAll()});
 }
 function saveGoals(){document.querySelectorAll('[data-goal-name]').forEach(e=>state.goals[+e.dataset.goalName].name=e.value.trim()||'Objetivo');document.querySelectorAll('[data-goal-saved]').forEach(e=>state.goals[+e.dataset.goalSaved].saved=n(e.value));document.querySelectorAll('[data-goal-target]').forEach(e=>state.goals[+e.dataset.goalTarget].target=n(e.value));save();renderAll()}
