@@ -74,12 +74,12 @@ details{margin-top:12px}footer{text-align:center;color:#7d8b98;font-size:.8rem;p
  .scroll{margin-left:-2px;margin-right:-2px}
  table{min-width:640px}
 }
-</style></head><body><header><h1>◈ My Finance Control</h1><p>Controlo financeiro pessoal · EUR · dados locais</p></header><main><nav class="tabs" id="tabs"><button class="active" data-tab="overview">Overview</button><button data-tab="budget">Budget</button><button data-tab="debts">Debts & Goals</button><button data-tab="transactions">Transactions</button><button data-tab="settings">Settings</button><a class="button primary" href="./bank-accounts.html">Accounts ↗</a><a class="button primary" href="./financial-intelligence.html?v=mobile-1">Intelligence v7 ↗</a></nav><section id="overview"></section><section id="budget" class="hide"></section><section id="debts" class="hide"></section><section id="transactions" class="hide"></section><section id="settings" class="hide"></section><footer>Dados privados neste dispositivo · saldos importados não são tempo real · estimativas não substituem confirmações bancárias</footer></main>
+</style></head><body><header><h1>◈ My Finance Control</h1><p>Controlo financeiro pessoal · EUR · dados locais</p></header><main><nav class="tabs" id="tabs"><button class="active" data-tab="overview">Overview</button><button data-tab="budget">Budget</button><button data-tab="debts">Debts & Goals</button><button data-tab="transactions">Transactions</button><button data-tab="settings">Settings</button><a class="button primary" href="./bank-accounts.html">Accounts ↗</a><a class="button primary" href="./financial-intelligence.html?v=bankfix-1">Intelligence v7 ↗</a></nav><section id="overview"></section><section id="budget" class="hide"></section><section id="debts" class="hide"></section><section id="transactions" class="hide"></section><section id="settings" class="hide"></section><footer>Dados privados neste dispositivo · saldos importados não são tempo real · estimativas não substituem confirmações bancárias</footer></main>
 <div class="mobile-sheet" id="mobileSheet" aria-hidden="true">
   <button data-mobile-tab="settings">⚙️ Definições</button>
   <div class="sep"></div>
   <a href="./bank-accounts.html">🏦 Contas bancárias</a>
-  <a href="./financial-intelligence.html?v=mobile-1">🧠 Intelligence v7</a>
+  <a href="./financial-intelligence.html?v=bankfix-1">🧠 Intelligence v7</a>
 </div>
 <nav class="mobile-nav" id="mobileNav" aria-label="Navegação principal">
   <button class="active" data-mobile-tab="overview"><span class="ico">⌂</span><span>Overview</span></button>
@@ -140,12 +140,28 @@ const badge=(t,tone='info')=>'<span class="badge '+tone+'">'+t+'</span>';
 const progress=(v,tone='')=>'<div class="progress '+tone+'"><span style="width:'+Math.max(0,Math.min(100,n(v)))+'%"></span></div>';
 const row=(a,b)=>'<div class="row"><span>'+a+'</span><strong>'+b+'</strong></div>';
 const field=(key,label,value,step='.01')=>'<label>'+label+'<input data-field="'+key+'" type="number" step="'+step+'" value="'+n(value)+'"></label>';
+function overviewBankCash(){
+ if(Number(state.bankCashCount)>0&&Number.isFinite(Number(state.bankCashTotal))){
+  return {value:Number(state.bankCashTotal),count:Number(state.bankCashCount),asOf:state.bankCashAsOf||state.bankSync?.generated_at||state.balanceDate||"",source:"bank-cash"};
+ }
+ const banks=state.bankSync?.banks||{},roles=state.accountRoles||{};let total=0,count=0;
+ for(const [bank,b] of Object.entries(banks)){
+  for(const a of (b.accounts||[])){
+   const role=roles[String(bank).toLowerCase()+"|"+String(a.account_ref||"")]||"unassigned",bal=a.balance||{};
+   if((role==="current"||role==="savings")&&bal.currency==="EUR"&&bal.amount!==null&&bal.amount!==undefined&&Number.isFinite(Number(bal.amount))){
+    total+=Number(bal.amount);count++;
+   }
+  }
+ }
+ if(count>0)return {value:total,count,asOf:state.bankSync?.generated_at||state.balanceDate||"",source:"computed"};
+ return {value:n(state.balance),count:0,asOf:state.balanceDate||"",source:"legacy"};
+}
 function renderOverview(){
- const payroll=payrollDeductions(),spent=monthlySpend(),budget=budgetTotal()+payroll.total,salary=salaryDetected(),payments=paymentStatuses(),pending=payments.reduce((a,p)=>a+(p.detected?0:p.amount),0),available=n(state.balance)-n(state.reserve)-pending,age=state.bankSync?.generated_at?Math.floor((Date.now()-new Date(state.bankSync.generated_at))/86400000):null;
- const reservePct=n(state.reserve)?Math.min(100,n(state.balance)/n(state.reserve)*100):0,budgetPct=budget?spent/budget*100:0;
+ const cash=overviewBankCash(),payroll=payrollDeductions(),spent=monthlySpend(),budget=budgetTotal()+payroll.total,salary=salaryDetected(),payments=paymentStatuses(),pending=payments.reduce((a,p)=>a+(p.detected?0:p.amount),0),available=n(cash.value)-n(state.reserve)-pending,age=cash.asOf?Math.max(0,Math.floor((Date.now()-new Date(cash.asOf))/86400000)):null;
+ const reservePct=n(state.reserve)?Math.min(100,n(cash.value)/n(state.reserve)*100):0,budgetPct=budget?spent/budget*100:0;
  document.getElementById('overview').innerHTML=
  '<div class="grid">'+
- metric('Dinheiro disponível',eur(state.balance),state.balanceDate?'Atualizado '+esc(state.balanceDate):'Saldo de referência','info')+
+ metric('Dinheiro disponível',eur(cash.value),cash.asOf?'Atualizado '+esc(String(cash.asOf).replace('T',' ').slice(0,16))+(cash.count?' · '+cash.count+' conta(s)':''):'Saldo de referência','info')+
  metric('Reserva protegida',eur(state.reserve),reservePct>=100?'Objetivo coberto':'Cobertura atual '+pct(reservePct/100),reservePct>=100?'good':'attention')+
  metric('Execução do mês',budget?pct(spent/budget):'—',eur(spent)+' de '+eur(budget),budgetPct<=100?'good':'debt')+
  metric('Livre acima da reserva',eur(available),'Após compromissos ainda pendentes',available>=0?'good':'debt')+
@@ -157,7 +173,7 @@ function renderOverview(){
  row('Rendimento antes das deduções',salary>0?eur(salary+payroll.total):'—')+
  '</div>'+
  '<div class="card accent-green"><h2>Pagamentos do mês</h2>'+payments.map(p=>row(esc(p.name),(p.bank?badge('Identificado no banco','good'):p.manual?badge('Confirmado manualmente','good'):badge('Por confirmar','warn'))+'<div style="margin-top:8px"><button class="action" data-pay="'+esc(p.name)+'">'+(p.manual?'Anular confirmação':p.detected?'Confirmado':'Confirmar pagamento')+'</button></div>')).join('')+'</div>'+
- '<div class="card accent-purple"><h2>Próxima decisão</h2><p class="muted">Património, amortização antecipada, projeções e saúde financeira estão concentrados na Financial Intelligence.</p><a class="button primary" href="./financial-intelligence.html?v=mobile-1">Abrir Intelligence v7 →</a></div>';
+ '<div class="card accent-purple"><h2>Próxima decisão</h2><p class="muted">Património, amortização antecipada, projeções e saúde financeira estão concentrados na Financial Intelligence.</p><a class="button primary" href="./financial-intelligence.html?v=bankfix-1">Abrir Intelligence v7 →</a></div>';
  document.querySelectorAll('[data-pay]').forEach(b=>b.onclick=()=>togglePayment(b.dataset.pay));
 }
 const pct=v=>(100*v).toFixed(1)+'%';
