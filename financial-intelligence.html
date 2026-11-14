@@ -82,7 +82,7 @@ function automaticIncome(s){
  return {current,reference:median||seed,months:vals.length,latestMonth:months.at(-1)||'',latest:months.length?byMonth[months.at(-1)]:0};
 }
 function automaticBankCash(s){
- if(Number.isFinite(Number(s.bankCashTotal)))return {value:Number(s.bankCashTotal),count:Number(s.bankCashCount)||0,asOf:s.bankCashAsOf||s.bankSync?.generated_at||"",source:"stored-total"};
+ if(Number(s.bankCashCount)>0&&Number.isFinite(Number(s.bankCashTotal)))return {value:Number(s.bankCashTotal),count:Number(s.bankCashCount)||0,asOf:s.bankCashAsOf||s.bankSync?.generated_at||"",source:"stored-total"};
  const banks=s.bankSync?.banks||{},roles=s.accountRoles||{};let total=0,count=0;
  for(const [bank,b] of Object.entries(banks)){for(const a of (b.accounts||[])){const role=roles[String(bank).toLowerCase()+"|"+String(a.account_ref||"")]||"unassigned",bal=a.balance||{};if((role==="current"||role==="savings")&&bal.currency==="EUR"&&bal.amount!==null&&bal.amount!==undefined&&Number.isFinite(Number(bal.amount))){total+=Number(bal.amount);count++}}}
  return {value:count?total:n(s.balance),count,asOf:s.bankSync?.generated_at||s.balanceDate||"",source:count?"computed":"legacy-balance"};
