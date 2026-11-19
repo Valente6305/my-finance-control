@@ -27,7 +27,7 @@ s+='<p class="muted">Transactions in supplied snapshot: '+txCount+'. A credit-ca
 document.querySelectorAll("[data-role]").forEach(el=>el.value=state.accountRoles?.[el.dataset.role]||"unassigned");
 $("saveRoles").onclick=()=>{const st=stateRead();st.accountRoles=st.accountRoles||{};const roles={...st.accountRoles};document.querySelectorAll("[data-role]").forEach(el=>{roles[el.dataset.role]=el.value});const cgd=(currentData.banks?.cgd?.accounts||[]);if(cgd.length===2){const mapped=cgd.map(a=>roles[accountKey("cgd",a)]);if(mapped.filter(r=>r==="current").length!==1||mapped.filter(r=>r==="credit").length!==1){$("msg").textContent="For your two CGD accounts, identify exactly one current account and one credit card before proceeding.";return}}st.accountRoles=roles;localStorage.setItem(KEY,JSON.stringify(st));reconcileFromSaved();display(currentData);$("msg").textContent="Account types saved. Current and savings accounts now feed the automatic total cash value; credit cards and excluded accounts are not counted.";};
 }
-function categoryOf(tx,role){const d=String(tx.description||"").toUpperCase();if(role==="credit"&&/PAGAMENTO|PAYMENT|LIQUID|AMORTIZA/.test(d))return "Debt payment";if(/CREDIBOM|PRESTA.CAO|PRESTACAO CREDITO|PAGAMENTO CARTAO|PAGAMENTO CARTÃO|CAIXA CLASSIC|CARTAO CREDITO|CARTÃO CRÉDITO/.test(d))return "Debt payment";if(/^T(F|R)I?\s+ASSOCIACAO\s+RAEGE$/.test(d.replace(/\s+/g," ").trim())&&Number(tx.amount)>0)return "Salary";if(/CONTINENTE|FINANCOR|FINANÇOR|PINGO DOCE|LIDL|AUCHAN|SUPERMERC|MINIPRECO|MERCEARIA/.test(d))return "Food";if(/COMBUST|GALP|REPSOL|BP |AUTOESTRADA|UBER|BOLT|TAXI|TÁXI|PARKING|ESTACION/.test(d))return "Transport";if(/MEO |TELECOM|ELETRIC|ENERGIA|EDP |AGUAS|ÁGUAS/.test(d))return "Bills";if(/TRANSFER|TRF |TRANSF|REVOLUT|CAR WAL CRT DEB REVOL/.test(d))return "Uncategorised";return role==="credit"?"Card purchase / review":"Uncategorised"}
+function categoryOf(tx,role){const d=String(tx.description||"").toUpperCase();if(role==="credit"&&/PAGAMENTO|PAYMENT|LIQUID|AMORTIZA/.test(d))return "Debt payment";if(/CREDIBOM|PRESTA.CAO|PRESTACAO CREDITO|PAGAMENTO CARTAO|PAGAMENTO CARTÃO|CAIXA CLASSIC|C CLASSIC|CARTAO CREDITO|CARTÃO CRÉDITO/.test(d))return "Debt payment";if(/^T(F|R)I?\s+ASSOCIACAO\s+RAEGE$/.test(d.replace(/\s+/g," ").trim())&&Number(tx.amount)>0)return "Salary";if(/CONTINENTE|FINANCOR|FINANÇOR|PINGO DOCE|LIDL|AUCHAN|SUPERMERC|MINIPRECO|MERCEARIA/.test(d))return "Food";if(/COMBUST|GALP|REPSOL|BP |AUTOESTRADA|UBER|BOLT|TAXI|TÁXI|PARKING|ESTACION/.test(d))return "Transport";if(/MEO |TELECOM|ELETRIC|ENERGIA|EDP |AGUAS|ÁGUAS/.test(d))return "Bills";if(/TRANSFER|TRF |TRANSF|REVOLUT|CAR WAL CRT DEB REVOL/.test(d))return "Uncategorised";return role==="credit"?"Card purchase / review":"Uncategorised"}
 function pairedTransfers(rows){const candidates=rows.filter(t=>t.import_id&&Number.isFinite(Number(t.amount))&&Number(t.amount)!==0&&/^(CGD|REVOLUT)$/i.test(t.account));const paired=new Set();for(const x of candidates){if(x.amount>=0||paired.has(x.import_id))continue;for(const y of candidates){if(x.import_id===y.import_id||paired.has(y.import_id)||x.account===y.account||y.amount<=0)continue;const dt=Math.abs(Date.parse(x.date+"T00:00:00Z")-Date.parse(y.date+"T00:00:00Z"))/86400000;if(Number.isFinite(dt)&&dt<=3&&Math.abs(Number(x.amount)+Number(y.amount))<0.011){paired.add(x.import_id);paired.add(y.import_id);break}}}return paired}
 function inferCgdRoles(s,data){
  const cgd=data.banks?.cgd?.accounts||[];
@@ -96,7 +96,7 @@ const st=stateRead();if(st.bankSync){display({generated_at:st.bankSync.generated
 function debtMatches(t,kind){
  const d=String(t.description||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase();
  if(kind==="car")return /CREDIBOM/.test(d);
- return /CAIXA CLASSIC|PAGAMENTO CARTAO|CARTAO CREDITO|PAG CARTAO|PAG\. CARTAO/.test(d);
+ return /CAIXA CLASSIC|C CLASSIC|PAGAMENTO CARTAO|CARTAO CREDITO|PAG CARTAO|PAG\. CARTAO/.test(d);
 }
 function computeDebtEstimates(s){
  const cfg=s.debtAnchors||{}, tx=Array.isArray(s.transactions)?s.transactions:[],out={};
@@ -107,7 +107,8 @@ function computeDebtEstimates(s){
   const unique=[...new Map(payments.map(t=>[t.import_id,t])).values()];
   const paid=unique.reduce((sum,t)=>sum-Number(t.amount),0);
   const balance=Math.max(0,Math.round((Number(anchor.balance)-paid)*100)/100);
-  out[kind]={balance,anchorBalance:Number(anchor.balance),anchorDate:anchor.date,payments:Math.round(paid*100)/100,matches:unique.length,asOf:unique.reduce((d,t)=>t.date>d?t.date:d,anchor.date),status:"schedule-based",warning:"No interest added: the reference balance must represent total remaining scheduled payments, including interest. If it represents principal only, use the principal portions from the repayment schedule."};
+  const asOf=unique.reduce((d,t)=>t.date>d?t.date:d,anchor.date),settled=balance<=0.01;
+  out[kind]={balance:settled?0:balance,anchorBalance:Number(anchor.balance),anchorDate:anchor.date,payments:Math.round(paid*100)/100,matches:unique.length,asOf,status:settled?"settled":"schedule-based",settled,settledAt:settled?asOf:"",warning:"No interest added: the reference balance must represent total remaining scheduled payments, including interest. If it represents principal only, use the principal portions from the repayment schedule."};
  }
  return out;
 }
@@ -140,6 +141,6 @@ function renderDebtReconciliation(){
 const debtCard=document.createElement("div");debtCard.className="card";debtCard.id="debtReconciliation";
 document.querySelector("main").insertBefore(debtCard,document.querySelector("main").lastElementChild);
 const originalImportHandler=document.getElementById("import").onclick;
-document.getElementById("import").onclick=async function(){await originalImportHandler();const st=stateRead();if(st.bankSync){st.debtEstimates=computeDebtEstimates(st);localStorage.setItem(KEY,JSON.stringify(st))}renderDebtReconciliation()};
+document.getElementById("import").onclick=async function(){await originalImportHandler();const st=stateRead();if(st.bankSync){st.debtEstimates=computeDebtEstimates(st);st.debtMilestones=st.debtMilestones||{};const card=st.debtEstimates?.card;if(card?.settled){st.debtMilestones.card={completed:true,completedAt:card.settledAt||new Date().toISOString().slice(0,10),source:"Imported bank transactions"};}else if(st.debtMilestones.card?.completed&&card&&card.balance>0.01){delete st.debtMilestones.card;}localStorage.setItem(KEY,JSON.stringify(st))}renderDebtReconciliation()};
 renderDebtReconciliation();
 </script></body></html>
