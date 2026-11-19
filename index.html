@@ -101,7 +101,7 @@ const txkey=t=>t.import_id||[t.date,t.account,t.description,t.amount].join('|');
 function toast(t){const e=document.getElementById('toast');e.textContent=t;e.style.display='block';setTimeout(()=>e.style.display='none',1800)}
 function transactions(){const m=new Map();for(const t of state.transactions||[]){if(!t||!/^\d{4}-\d{2}-\d{2}/.test(String(t.date||''))||!Number.isFinite(Number(t.amount)))continue;const k=txkey(t);if(!m.has(k))m.set(k,t)}return [...m.values()]}
 function isTransfer(t){return t.category==='Transfer'||/TRANSFERENCIA ENTRE CONTAS|REVOLUT TOP UP|TRANSFER TO OWN/.test(norm(t.description))}
-function isDebt(t){return t.category==='Debt payment'||/CREDIBOM|CAIXA CLASSIC|PAGAMENTO CARTAO|PAG CARTAO|CARTAO CREDITO/.test(norm(t.description))}
+function isDebt(t){return t.category==='Debt payment'||/CREDIBOM|CAIXA CLASSIC|C CLASSIC|PAGAMENTO CARTAO|PAG CARTAO|CARTAO CREDITO/.test(norm(t.description))}
 function regularSalaryCandidates(){
  const seed=n(state.salary)||2096.22;
  return transactions().filter(t=>n(t.amount)>0&&/^T(F|R)I?\s+ASSOCIACAO\s+RAEGE$/.test(norm(t.description).replace(/\s+/g,' ').trim())).filter(t=>{const a=n(t.amount);return a>=seed*.7&&a<=seed*1.35})
@@ -110,7 +110,10 @@ function isSalary(t){return regularSalaryCandidates().some(x=>txkey(x)===txkey(t
 function monthlySpend(mm=currentMonth()){const bank=transactions().filter(t=>month(t.date)===mm&&n(t.amount)<0&&!isTransfer(t)&&!isDebt(t)).reduce((a,t)=>a-n(t.amount),0),pay=payrollDeductions(mm);return bank+pay.total}
 function salaryDetected(){const seed=n(state.salary)||2096.22,c=regularSalaryCandidates().filter(t=>month(t.date)===currentMonth());if(!c.length)return 0;return n(c.sort((a,b)=>Math.abs(n(a.amount)-seed)-Math.abs(n(b.amount)-seed))[0].amount)}
 function paymentStatus(name,amount,re){const mm=currentMonth(),manual=state.paymentConfirmations?.[mm]?.[name];const hits=transactions().filter(t=>month(t.date)===mm&&n(t.amount)<0&&re.test(norm(t.description))&&Math.abs(-n(t.amount)-amount)<=1);return {name,amount,detected:hits.length>0||!!manual,bank:hits.length>0,manual:!hits.length&&!!manual}}
-function paymentStatuses(){return [paymentStatus('Credibom',n(state.carRegular)||210.74,/CREDIBOM/),paymentStatus('Caixa Classic',n(state.cardRegular)||231.25,/CAIXA CLASSIC|PAGAMENTO CARTAO|PAG CARTAO|CARTAO CREDITO/)]}
+function paymentStatuses(){return [paymentStatus('Credibom',n(state.carRegular)||210.74,/CREDIBOM/),paymentStatus('Caixa Classic',n(state.cardRegular)||231.25,/CAIXA CLASSIC|C CLASSIC|PAGAMENTO CARTAO|PAG CARTAO|CARTAO CREDITO/)]}
+function cardDebtBalance(){const c=state.debtEstimates?.card;return c?n(c.balance):n(state.cardBalance)}
+function cardDebtSettled(){return cardDebtBalance()<=0.01||!!state.debtMilestones?.card?.completed}
+function effectiveCardPayment(){return cardDebtSettled()?0:(n(state.cardRegular)||231.25)}
 function budgetTotal(){return n(state.food)+n(state.transport)+n(state.meo)+n(state.bankSubs)+n(state.misc)}
 function migrateGoal(){if((state.goals||[]).length===0&&n(state.scooterTarget)>0){state.goals=[{id:'legacy-scooter',name:'Trotinete',target:n(state.scooterTarget),saved:n(state.scooter)}];save()}}
 migrateGoal();
@@ -126,7 +129,7 @@ function migratePayrollDeductions(){
  save();
 }
 function automaticSafetyMargin(){
- const pay=payrollDeductions(),essential=pay.total+n(state.food)+n(state.transport)+n(state.meo)+n(state.bankSubs)+n(state.carRegular)+n(state.cardRegular);
+ const pay=payrollDeductions(),essential=pay.total+n(state.food)+n(state.transport)+n(state.meo)+n(state.bankSubs)+n(state.carRegular)+effectiveCardPayment();
  return {essential,margin:Math.max(300,Math.round(essential*.10*100)/100)};
 }
 function payrollDeductions(mm=currentMonth()){
@@ -179,7 +182,7 @@ function renderOverview(){
 const pct=v=>(100*v).toFixed(1)+'%';
 function monthlyExpenseSummary(){
  const pay=payrollDeductions();
- const fixed=pay.total+n(state.meo)+n(state.bankSubs)+n(state.carRegular)+n(state.cardRegular);
+ const fixed=pay.total+n(state.meo)+n(state.bankSubs)+n(state.carRegular)+effectiveCardPayment();
  const variable=n(state.food)+n(state.transport)+n(state.misc);
  return {pay,fixed,variable,total:fixed+variable};
 }
@@ -198,20 +201,20 @@ function renderBudget(){
  '<div class="card accent-amber"><h2>Composição do mês</h2>'+
  row('Orçamento bancário planeado',eur(budgetTotal()))+
  row('Deduções no vencimento',eur(pay.total)+' '+(pay.estimated?badge('Estimativa','warn'):badge('Confirmado','good')))+
- row('Compromissos de dívida',eur(n(state.carRegular)+n(state.cardRegular)))+
+ row('Compromissos de dívida',eur(n(state.carRegular)+effectiveCardPayment()))+
  row('Total mensal de referência',eur(x.total))+
  progress(exec,exec<=100?'good':'bad')+
  '</div>';
  bindFields();document.getElementById('saveBudget').onclick=()=>{save();renderAll()}
 }
 function renderDebts(){
- const goals=state.goals||[],car=state.debtEstimates?.car,card=state.debtEstimates?.card,carBal=car?n(car.balance):n(state.carBalance),cardBal=card?n(card.balance):n(state.cardBalance);
+ const goals=state.goals||[],car=state.debtEstimates?.car,card=state.debtEstimates?.card,carBal=car?n(car.balance):n(state.carBalance),cardBal=card?n(card.balance):n(state.cardBalance),cardDone=cardBal<=0.01||!!state.debtMilestones?.card?.completed;
  document.getElementById('debts').innerHTML=
  '<div class="debt-grid">'+
- '<div class="debt-card"><div class="goal-head"><h2>Caixa Classic</h2>'+badge(cardBal>0?'Prioridade alta':'Liquidado',cardBal>0?'bad':'good')+'</div>'+
- row('Saldo estimado',eur(cardBal))+row('Pagamento mensal',eur(state.cardRegular))+row('Taxa anual',n(state.cardAPR).toFixed(2)+'%')+
+ '<div class="debt-card"><div class="goal-head"><h2>Caixa Classic</h2>'+badge(cardDone?'Objetivo concluído':'Prioridade alta',cardDone?'good':'bad')+'</div>'+
+ row('Saldo estimado',eur(cardDone?0:cardBal))+row('Pagamento mensal',cardDone?badge('0 € · encerrado','good'):eur(state.cardRegular))+row('Taxa anual',n(state.cardAPR).toFixed(2)+'%')+
  (card?row('Pagamentos identificados',card.matches+' · '+eur(card.payments))+row('Atualizado até',esc(card.asOf)):'')+
- '<p class="muted">Crédito revolving. Evitar novas utilizações enquanto existir saldo.</p></div>'+
+ (cardDone?'<p class="muted">Objetivo concluído'+(state.debtMilestones?.card?.completedAt?' em '+esc(state.debtMilestones.card.completedAt):'')+'. A prestação mensal deixou de entrar nas projeções.</p>':'<p class="muted">Crédito revolving. Evitar novas utilizações enquanto existir saldo.</p>')+'</div>'+
  '<div class="debt-card"><div class="goal-head"><h2>Credibom</h2>'+badge(carBal>0?'Em amortização':'Liquidado',carBal>0?'warn':'good')+'</div>'+
  row('Saldo estimado',eur(carBal))+row('Prestação',eur(state.carRegular))+row('Taxa anual',n(state.carAPR).toFixed(2)+'%')+
  (car?row('Pagamentos identificados',car.matches+' · '+eur(car.payments))+row('Atualizado até',esc(car.asOf)):'')+
