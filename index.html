@@ -160,6 +160,36 @@ function recomputeDerivedDebtState(){
  if(out.card?.settled)state.debtMilestones.card={completed:true,completedAt:out.card.settledAt||new Date().toISOString().slice(0,10),source:"Imported bank transactions"};
  else if(out.card&&out.card.balance>0.01&&state.debtMilestones.card?.source==="Imported bank transactions")delete state.debtMilestones.card;
 }
+function dataQualityStatus(){
+ const tx=transactions(),bankTx=tx.filter(t=>t.import_id),snapshot=state.bankSync?.generated_at||"",banks=state.bankSync?.banks||{},roles=state.accountRoles||{};
+ let totalAccounts=0,assignedAccounts=0;
+ for(const [bank,b] of Object.entries(banks)){for(const a of (b.accounts||[])){totalAccounts++;if((roles[String(bank).toLowerCase()+"|"+String(a.account_ref||"")]||"unassigned")!=="unassigned")assignedAccounts++;}}
+ const unclassified=bankTx.filter(t=>["Uncategorised","Card purchase / review"].includes(String(t.category||""))).length;
+ const classified=Math.max(0,bankTx.length-unclassified),coverage=bankTx.length?Math.round(classified/bankTx.length*100):0;
+ const age=snapshot&&Number.isFinite(Date.parse(snapshot))?Math.max(0,Math.floor((Date.now()-Date.parse(snapshot))/86400000)):null;
+ const cash=overviewBankCash(),issues=[];
+ if(!snapshot)issues.push("Sem snapshot bancário importado");
+ else if(age!==null&&age>2)issues.push("Snapshot bancário com "+age+" dias");
+ if(totalAccounts&&!assignedAccounts)issues.push("Nenhuma conta classificada");
+ else if(assignedAccounts<totalAccounts)issues.push((totalAccounts-assignedAccounts)+" conta(s) por classificar");
+ if(!cash.count&&snapshot)issues.push("Nenhuma conta corrente/poupança reconciliada");
+ if(unclassified>0)issues.push(unclassified+" movimento(s) por classificar");
+ const level=!snapshot||!cash.count?"bad":(age!==null&&age>2)||(totalAccounts&&assignedAccounts<totalAccounts)||(bankTx.length&&coverage<90)?"warn":"good";
+ return {snapshot,age,totalAccounts,assignedAccounts,bankTransactions:bankTx.length,unclassified,coverage,cashAccounts:cash.count,level,issues};
+}
+function renderDataQualityCard(){
+ const q=dataQualityStatus(),label=q.level==="good"?"Reconciliado":q.level==="warn"?"Requer atenção":"Dados insuficientes",tone=q.level==="good"?"good":q.level==="warn"?"warn":"bad";
+ return '<div class="card accent-blue"><div class="goal-head"><h2>Qualidade e reconciliação dos dados</h2>'+badge(label,tone)+'</div>'+
+ row('Snapshot .mfc',q.snapshot?esc(String(q.snapshot).replace('T',' ').slice(0,16)):'Não disponível')+
+ row('Frescura',q.age===null?'—':q.age===0?'Hoje':q.age+' dia(s)')+
+ row('Contas classificadas',q.assignedAccounts+' / '+q.totalAccounts)+
+ row('Contas de caixa reconciliadas',String(q.cashAccounts))+
+ row('Movimentos bancários',String(q.bankTransactions))+
+ row('Cobertura de classificação',q.bankTransactions?q.coverage+'%':'—')+
+ row('Por classificar',String(q.unclassified))+
+ (q.issues.length?'<div class="note" style="margin-top:12px"><strong>Atenção:</strong> '+q.issues.map(esc).join(' · ')+'</div>':'<p class="muted">Sem alertas críticos de reconciliação.</p>')+
+ '</div>';
+}
 function dataProvenance(){
  const tx=transactions(),bankTx=tx.filter(t=>t.import_id),cash=overviewBankCash(),salary=salaryDetected(),card=state.debtEstimates?.card,car=state.debtEstimates?.car;
  return {
@@ -197,6 +227,7 @@ function renderOverview(){
  metric('Execução do mês',budget?pct(spent/budget):'—',eur(spent)+' de '+eur(budget),budgetPct<=100?'good':'debt')+
  metric('Livre acima da reserva',eur(available),'Após compromissos ainda pendentes',available>=0?'good':'debt')+
  '</div>'+
+ renderDataQualityCard()+
  '<div class="card accent-blue"><h2>Estado financeiro do mês</h2>'+
  row('Sincronização bancária',age===null?badge('Sem importação','warn'):age<=2?badge('Atualizada · '+age+' dia(s)','good'):badge('Desatualizada · '+age+' dias','warn'))+
  row('Crédito salarial',salary>0?badge('Detetado','good')+' '+eur(salary):badge('Ainda não detetado','warn'))+
