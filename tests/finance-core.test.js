@@ -68,6 +68,10 @@ function run(){
  assert.equal(result.changes.find(x=>x.refSuffix==="urrent").delta,1000);
  assert.equal(result.missingAccounts,1);
  assert.equal(result.newAccounts,0);
+ // No stale reference balance presented as bank-verified liquidity.
+ const unreconciled=sample(2500);unreconciled.accountRoles={};
+ assert.equal(f.bankCash(unreconciled).value,null);
+ assert.equal(f.bankCash(unreconciled).source,"unreconciled");
  // Metadata guard: available credit exceeding limit cannot be trusted.
  assert.equal(f.debtState(sample(2600)).card.settled,false);
  // No known debt balance is not proof of settlement.
