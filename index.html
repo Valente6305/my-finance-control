@@ -88,7 +88,7 @@ details{margin-top:12px}footer{text-align:center;color:#7d8b98;font-size:.8rem;p
   <button data-mobile-tab="transactions"><span class="ico">↕</span><span>Movimentos</span></button>
   <button data-mobile-more><span class="ico">•••</span><span>Mais</span></button>
 </nav>
-<div id="toast"></div><script src="./finance-core.js?v=2"></script><script>
+<div id="toast"></div><script src="./finance-core.js?v=3"></script><script>
 'use strict';
 const KEY='finance-control-public-v2';
 const defaults={salary:0,balance:0,balanceDate:'',reserve:0,cardBalance:0,cardAPR:0,cardRegular:231.25,carBalance:0,carAPR:0,carRegular:210.74,meo:0,bankSubs:0,food:0,transport:0,misc:0,workingBuffer:0,transactions:[],paymentConfirmations:{},goals:[]};
@@ -100,8 +100,8 @@ const month=d=>String(d||'').slice(0,7),currentMonth=()=>new Date().toISOString(
 const txkey=t=>t.import_id||[t.date,t.account,t.description,t.amount].join('|');
 function toast(t){const e=document.getElementById('toast');e.textContent=t;e.style.display='block';setTimeout(()=>e.style.display='none',1800)}
 function transactions(){const m=new Map();for(const t of state.transactions||[]){if(!t||!/^\d{4}-\d{2}-\d{2}/.test(String(t.date||''))||!Number.isFinite(Number(t.amount)))continue;const k=txkey(t);if(!m.has(k))m.set(k,t)}return [...m.values()]}
-function isTransfer(t){return t.category==='Transfer'||/TRANSFERENCIA ENTRE CONTAS|REVOLUT TOP UP|TRANSFER TO OWN/.test(norm(t.description))}
-function isDebt(t){return t.category==='Debt payment'||/CREDIBOM|CAIXA CLASSIC|C CLASSIC|PAGAMENTO CARTAO|PAG CARTAO|CARTAO CREDITO/.test(norm(t.description))}
+function isTransfer(t){return t.categoryCorrected?t.category==='Transfer':t.category==='Transfer'||/TRANSFERENCIA ENTRE CONTAS|REVOLUT TOP UP|TRANSFER TO OWN/.test(norm(t.description))}
+function isDebt(t){return t.categoryCorrected?t.category==='Debt payment':t.category==='Debt payment'||/CREDIBOM|CAIXA CLASSIC|C CLASSIC|PAGAMENTO CARTAO|PAG CARTAO|CARTAO CREDITO/.test(norm(t.description))}
 function regularSalaryCandidates(){
  const seed=n(state.salary)||2096.22;
  return transactions().filter(t=>n(t.amount)>0&&/^T(F|R)I?\s+ASSOCIACAO\s+RAEGE$/.test(norm(t.description).replace(/\s+/g,' ').trim())).filter(t=>{const a=n(t.amount);return a>=seed*.7&&a<=seed*1.35})
@@ -268,8 +268,20 @@ function renderDebts(){
 function saveGoals(){document.querySelectorAll('[data-goal-name]').forEach(e=>state.goals[+e.dataset.goalName].name=e.value.trim()||'Objetivo');document.querySelectorAll('[data-goal-saved]').forEach(e=>state.goals[+e.dataset.goalSaved].saved=n(e.value));document.querySelectorAll('[data-goal-target]').forEach(e=>state.goals[+e.dataset.goalTarget].target=n(e.value));save();renderAll()}
 function renderTransactions(){
  const list=transactions().sort((a,b)=>String(b.date).localeCompare(String(a.date))).slice(0,100);
- document.getElementById('transactions').innerHTML='<div class="card"><h2>Ajuste manual</h2><p class="muted">Usa apenas para dinheiro, correções ou movimentos que não chegam pela importação bancária.</p><div class="grid"><label>Data<input id="txDate" type="date" value="'+new Date().toISOString().slice(0,10)+'"></label><label>Descrição<input id="txDesc" type="text"></label><label>Valor (€; negativo = despesa)<input id="txAmount" type="number" step=".01"></label></div><button class="action" id="addTx">Adicionar ajuste</button></div><div class="card"><h2>Movimentos recentes</h2><div class="scroll"><table><thead><tr><th>Data</th><th>Descrição</th><th>Valor</th><th>Origem</th></tr></thead><tbody>'+list.map(t=>'<tr><td>'+esc(t.date)+'</td><td>'+esc(t.description||'')+'</td><td>'+eur(t.amount)+'</td><td>'+(t.import_id?'Banco':'Manual')+'</td></tr>').join('')+'</tbody></table></div></div>';
- document.getElementById('addTx').onclick=()=>{const date=document.getElementById('txDate').value,description=document.getElementById('txDesc').value.trim(),amount=Number(document.getElementById('txAmount').value);if(!date||!description||!Number.isFinite(amount))return toast('Preenche data, descrição e valor');state.transactions=[...(state.transactions||[]),{date,description,amount,category:'Manual'}];save();renderAll()};
+ const categories=[["Food","Alimentação"],["Transport","Transportes"],["Bills","Serviços e comunicações"],["Health","Saúde"],["Family","Família"],["Leisure","Lazer"],["Bank fees","Encargos bancários"],["Debt payment","Pagamento de dívida"],["Transfer","Transferência interna"],["Salary","Salário"],["Card purchase / review","Compra cartão / rever"],["Uncategorised","Por classificar"],["Other","Outros"]];
+ const select=t=>{
+  const current=String(t.category||"Uncategorised"),choices=categories.some(x=>x[0]===current)?categories:[[current,current],...categories];
+  return '<select data-tx-category="'+esc(txkey(t))+'" aria-label="Categoria de '+esc(t.description||"movimento")+'" style="max-width:175px;font:inherit">'+choices.map(([v,label])=>'<option value="'+esc(v)+'"'+(v===current?' selected':'')+'>'+esc(label)+'</option>').join('')+'</select>';
+ };
+ document.getElementById('transactions').innerHTML='<div class="card"><h2>Ajuste manual</h2><p class="muted">Usa apenas para dinheiro, correções ou movimentos que não chegam pela importação bancária.</p><div class="grid"><label>Data<input id="txDate" type="date" value="'+new Date().toISOString().slice(0,10)+'"></label><label>Descrição<input id="txDesc" type="text"></label><label>Valor (€; negativo = despesa)<input id="txAmount" type="number" step=".01"></label></div><button class="action" id="addTx">Adicionar ajuste</button></div><div class="card"><h2>Movimentos recentes</h2><p class="muted">Podes corrigir a categoria de cada movimento. A correção é guardada apenas neste dispositivo e preservada nas próximas importações.</p><div class="scroll"><table><thead><tr><th>Data</th><th>Descrição</th><th>Valor</th><th>Origem</th><th>Categoria</th></tr></thead><tbody>'+list.map(t=>'<tr><td>'+esc(t.date)+'</td><td>'+esc(t.description||'')+'</td><td>'+eur(t.amount)+'</td><td>'+(t.import_id?'Banco':'Manual')+(t.categoryCorrected?' · corrigido':'')+'</td><td>'+select(t)+'</td></tr>').join('')+'</tbody></table></div></div>';
+ document.getElementById('addTx').onclick=()=>{const date=document.getElementById('txDate').value,description=document.getElementById('txDesc').value.trim(),amountText=document.getElementById('txAmount').value,amount=Number(amountText);if(!date||!description||amountText===""||!Number.isFinite(amount))return toast('Preenche data, descrição e valor');state.transactions=[...(state.transactions||[]),{date,description,amount,category:'Manual'}];save();renderAll()};
+ document.querySelectorAll('[data-tx-category]').forEach(el=>el.onchange=()=>{
+  const id=el.dataset.txCategory,tx=(state.transactions||[]).find(t=>txkey(t)===id);
+  if(!tx)return;
+  tx.category=el.value;tx.categoryCorrected=true;
+  if(tx.import_id){state.categoryOverrides=state.categoryOverrides||{};state.categoryOverrides[tx.import_id]=el.value}
+  save();renderAll();
+ });
 }
 function renderSettings(){
  const sm=automaticSafetyMargin();document.getElementById('settings').innerHTML='<div class="card"><h2>Configuração essencial</h2><div class="grid">'+field('reserve','Reserva de emergência (€)',state.reserve)+'</div>'+row('Margem de segurança automática',eur(sm.margin))+row('Base: despesas essenciais mensais',eur(sm.essential))+'<p class="muted">A margem é calculada automaticamente como 10% das despesas essenciais, com mínimo de 300 €. É uma almofada operacional adicional à reserva de emergência.</p><p class="muted">O rendimento mensal é inferido automaticamente dos movimentos bancários classificados como salário.</p><button class="action" id="saveSettings">Guardar</button></div>'+
