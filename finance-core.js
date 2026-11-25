@@ -73,7 +73,10 @@ function bankCash(s){
    items.push({bank,account_ref:a.account_ref||"",role,balance});
  }
  if(items.length)return {value:round(items.reduce((x,a)=>x+a.balance,0)),count:items.length,items,asOf:s.bankSync?.generated_at||"",source:"bank"};
- return {value:number(s.balance)||0,count:0,items:[],asOf:s.bankSync?.generated_at||s.balanceDate||"",source:"legacy"};
+ // If a bank snapshot exists but no account is verified as cash, never
+ // silently reuse a potentially stale legacy cash balance.
+ if(s.bankSync?.generated_at)return {value:null,count:0,items:[],asOf:s.bankSync.generated_at,source:"unreconciled"};
+ return {value:number(s.balance),count:0,items:[],asOf:s.balanceDate||"",source:"legacy"};
 }
 function anchorEstimate(s,kind,rows){
  const a=s.debtAnchors?.[kind];
@@ -126,5 +129,5 @@ function quality(s){
  if(days!==null&&days>2)issues.push("Snapshot desatualizado: "+days+" dia(s)");
  return {rows:rows.length,accounts:accounts.length,assigned:accounts.filter(a=>a.role!=="unassigned").length,cashCount:cash.count,unclassified,days,issues,status:issues.length?"attention":"reconciled"};
 }
-root.MFCFinance={version:"1.2.0",key,bankCash,debtState,quality,uniqueTransactions,snapshotDecision,validateSnapshot,snapshotDiff};
+root.MFCFinance={version:"1.2.1",key,bankCash,debtState,quality,uniqueTransactions,snapshotDecision,validateSnapshot,snapshotDiff};
 })(window);
