@@ -66,7 +66,7 @@ function monthReview(s,p){
  const mm=priorMonth(),payroll=payrollForMonth(s,mm),list=transactions(s).filter(t=>month(t.date)===mm),sp=list.filter(t=>n(t.amount)<0&&!['Prestação','Transferência'].includes(classify(t,p))),spentBank=sp.reduce((a,t)=>a-n(t.amount),0),spent=spentBank+payroll.total,snap=p.budgetHistory?.[mm],bud=snap?.categories||activeBudget(s,p),budgetBank=Object.values(bud).reduce((a,v)=>a+n(v),0),cats={};
  for(const t of sp){const c=classify(t,p);cats[c]=(cats[c]||0)-n(t.amount)}
  for(const x of payroll.items||[]){cats[x.category]=(cats[x.category]||0)+n(x.amount)}
- const pay=[['Credibom',n(s.carRegular)||210.74,/CREDIBOM/],...(MFCFinance.debtState(s).card.settled?[]:[['Caixa Classic',n(s.cardRegular)||231.25,/CAIXA CLASSIC|C CLASSIC|PAGAMENTO CARTAO|PAG CARTAO|CARTAO CREDITO/]])].map(([name,amount,re])=>{const hits=list.filter(t=>n(t.amount)<0&&re.test(norm(t.description))),paid=hits.reduce((a,t)=>a-n(t.amount),0);return {name,amount,paid,ok:!!s.paymentConfirmations?.[mm]?.[name]||hits.length>0,bank:hits.length>0}});
+ const pay=[['Credibom',n(s.carRegular)||210.74,/CREDIBOM/],['Caixa Classic',n(s.cardRegular)||231.25,/CAIXA CLASSIC|C CLASSIC|PAGAMENTO CARTAO|PAG CARTAO|CARTAO CREDITO/]].map(([name,amount,re])=>{const hits=list.filter(t=>n(t.amount)<0&&re.test(norm(t.description))),paid=hits.reduce((a,t)=>a-n(t.amount),0);return {name,amount,paid,ok:!!s.paymentConfirmations?.[mm]?.[name]||hits.length>0,bank:hits.length>0}});
  const hasBank=list.some(t=>t.import_id),complete=hasBank&&list.length>=5;
  return {mm,list,spent,spentBank,payroll,bud,budget:budgetBank+payroll.total,cats,pay,complete,snap};
 }
