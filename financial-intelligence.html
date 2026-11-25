@@ -132,7 +132,7 @@ function intelligenceDataQuality(s){
  if(!cash.count&&snapshot)issues.push("Nenhuma conta corrente/poupança reconciliada");
  if(unclassified>0)issues.push(unclassified+" movimento(s) por classificar");
  if(MFCFinance.debtState(s).card.source!=="verified-available-credit")issues.push("Semântica do cartão Caixa Classic não verificada");
- const level=!snapshot||!cash.count?"bad":(age!==null&&age>2)||(totalAccounts&&assignedAccounts<totalAccounts)||(bankTx.length&&coverage<90)?"warn":"good";
+ const level=!snapshot||!cash.count?"bad":issues.length?"warn":"good";
  return {snapshot,age,totalAccounts,assignedAccounts,bankTransactions:bankTx.length,unclassified,coverage,cashAccounts:cash.count,level,issues};
 }
 function intelligenceQualityBox(s){
