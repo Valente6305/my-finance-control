@@ -3,11 +3,17 @@ on:
   push:
     paths:
       - 'finance-core.js'
+      - 'index.html'
+      - 'bank-accounts.html'
+      - 'financial-intelligence.html'
       - 'tests/**'
       - '.github/workflows/finance-tests.yml'
   pull_request:
     paths:
       - 'finance-core.js'
+      - 'index.html'
+      - 'bank-accounts.html'
+      - 'financial-intelligence.html'
       - 'tests/**'
       - '.github/workflows/finance-tests.yml'
 
