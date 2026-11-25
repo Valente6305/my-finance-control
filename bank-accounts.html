@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bank Accounts — My Finance Control</title><meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0"><style>
 :root{font-family:system-ui,-apple-system,sans-serif;color:#172b3c;background:#f2f5f8}*{box-sizing:border-box}body{margin:0}header{background:#10243a;color:white;padding:22px 18px}h1{font-size:1.4rem;margin:0}main{max-width:840px;margin:20px auto;padding:0 14px}.card{background:white;border:1px solid #dee6ef;border-radius:16px;padding:18px;margin-bottom:14px}.muted{color:#62758a;font-size:.88rem}button,.button{border:0;border-radius:10px;background:#10243a;color:white;padding:12px 16px;font-weight:650;cursor:pointer;text-decoration:none;display:inline-block}input{font:inherit;padding:12px;border:1px solid #a9b8ca;border-radius:9px;width:100%;margin:7px 0 15px}label{display:block;font-size:.9rem;font-weight:650}.row{display:flex;justify-content:space-between;gap:15px;padding:10px 0;border-bottom:1px solid #e8edf3;flex-wrap:wrap}.row:last-child{border:0}.positive{color:#08734d}.note{padding:12px;background:#fff3df;border-radius:9px}.good{padding:12px;background:#e6f5ee;border-radius:9px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}.hidden{display:none}a{color:#115676}strong{overflow-wrap:anywhere}
-</style></head><body><header><h1>◈ Bank Accounts</h1><p style="color:#c8d7e6">My Finance Control · Local encrypted snapshot import</p></header><main><p><a href="./index.html">← Back to financial dashboard</a></p><div class="card"><h2>Import Mac Bank Bridge snapshot</h2><p class="muted">Use the <code>.mfc</code> file exported by the Mac utility. It was encrypted on your Mac, and is decrypted on this device. Never share your password or bank file in chat.</p><label for="file">Encrypted bank snapshot (.mfc)</label><input id="file" type="file"><p class="muted">On iPhone, choose the encrypted .mfc file from Files. iOS may not recognise its extension; the file contents are validated after selection.</p><label for="password">Transfer password</label><input id="password" type="password" autocomplete="off" placeholder="Enter the password chosen on your Mac"><label><input id="persist" type="checkbox" style="width:auto;margin:0 8px 0 0" checked> Save imported balances and transactions on this iPhone</label><p class="muted">If selected, imported information is stored in browser local storage, which is <strong>not encrypted at rest</strong>. Use a locked, trusted device and export private backups. Uncheck to view the report only for this session.</p><button id="import">Decrypt and review snapshot</button><p id="msg" role="status" class="muted"></p></div><div class="card"><h2>Imported balances</h2><div id="summary"><p class="muted">No snapshot loaded in this session yet.</p></div></div><div class="card"><h2>Transaction handling</h2><p>CGD current-account cash and CGD credit-card figures are separate. Confirm each account type once; the mapping will be reused for later snapshots. Credit-card available credit is not cash and is not necessarily the amount owed.</p><p>New movements are categorised conservatively by their descriptions. Matched CGD–Revolut transfers are excluded from spending; repayments are separate from card purchases. Review uncategorised movements and confirm values from your bank statements.</p></div><div class="card"><h2>Privacy and status</h2><p class="muted">This application runs from public GitHub Pages. Your imported financial files are handled inside your iPhone browser and are not uploaded to GitHub by this page. The Mac's daily synchronisation does not automatically reach the iPhone; transfer a new encrypted snapshot when you wish to update the phone.</p><button id="clear" style="background:#8c2430">Remove imported bank data on this device</button></div></main><script>
+</style></head><body><header><h1>◈ Bank Accounts</h1><p style="color:#c8d7e6">My Finance Control · Local encrypted snapshot import</p></header><main><p><a href="./index.html">← Back to financial dashboard</a></p><div class="card"><h2>Import Mac Bank Bridge snapshot</h2><p class="muted">Use the <code>.mfc</code> file exported by the Mac utility. It was encrypted on your Mac, and is decrypted on this device. Never share your password or bank file in chat.</p><label for="file">Encrypted bank snapshot (.mfc)</label><input id="file" type="file"><p class="muted">On iPhone, choose the encrypted .mfc file from Files. iOS may not recognise its extension; the file contents are validated after selection.</p><label for="password">Transfer password</label><input id="password" type="password" autocomplete="off" placeholder="Enter the password chosen on your Mac"><label><input id="persist" type="checkbox" style="width:auto;margin:0 8px 0 0" checked> Save imported balances and transactions on this iPhone</label><p class="muted">If selected, imported information is stored in browser local storage, which is <strong>not encrypted at rest</strong>. Use a locked, trusted device and export private backups. Uncheck to view the report only for this session.</p><button id="import">Decrypt and review snapshot</button><p id="msg" role="status" class="muted"></p></div><div class="card"><h2>Imported balances</h2><div id="summary"><p class="muted">No snapshot loaded in this session yet.</p></div></div><div class="card"><h2>Transaction handling</h2><p>CGD current-account cash and CGD credit-card figures are separate. Confirm each account type once; the mapping will be reused for later snapshots. Credit-card available credit is not cash and is not necessarily the amount owed.</p><p>New movements are categorised conservatively by their descriptions. Matched CGD–Revolut transfers are excluded from spending; repayments are separate from card purchases. Review uncategorised movements and confirm values from your bank statements.</p></div><div class="card"><h2>Privacy and status</h2><p class="muted">This application runs from public GitHub Pages. Your imported financial files are handled inside your iPhone browser and are not uploaded to GitHub by this page. The Mac's daily synchronisation does not automatically reach the iPhone; transfer a new encrypted snapshot when you wish to update the phone.</p><button id="clear" style="background:#8c2430">Remove imported bank data on this device</button></div></main><script src="./finance-core.js?v=1"></script><script>
 "use strict";
 const KEY="finance-control-public-v2";
 const $=id=>document.getElementById(id);
@@ -21,10 +21,30 @@ function previewRoles(data,s){const accounts=(data.banks?.cgd?.accounts||[]);con
 function display(data){currentData=data;let state=stateRead();let s='<p>Snapshot generated: <strong>'+escapeHTML(data.generated_at||"unknown")+'</strong></p>';let cash=0,cashCount=0,txCount=0,unassigned=0,cardCount=0;
 for(const [name,bank] of Object.entries(data.banks||{})){s+='<h3>'+escapeHTML(name.toUpperCase())+'</h3>';for(const a of (bank.accounts||[])){const role=roleOf(state,name,a),bal=euroBalance(a);txCount+=(a.transactions||[]).length;if(role==="current"||role==="savings"){if(bal!==null){cash+=bal;cashCount++}}if(role==="unassigned")unassigned++;if(role==="credit")cardCount++;const safeRef=escapeHTML(String(a.account_ref||"unknown").slice(-6));s+='<div class="row"><span>Account ending …'+safeRef+'<br><small class="muted">'+escapeHTML(accountName(role))+'</small></span><strong>'+escapeHTML(bal===null?"Unknown balance":format(bal))+'</strong></div>';s+='<label style="margin:5px 0 12px">Account classification<select data-role="'+escapeHTML(accountKey(name,a))+'" style="width:100%;font:inherit;padding:10px;border-radius:8px"><option value="unassigned">Not identified</option><option value="current">Current / debit account</option><option value="credit">Credit card — NOT cash</option><option value="savings">Savings deposit</option><option value="other">Other / exclude from cash</option></select></label>';}}
 s+='<button id="saveRoles">Save account classification & reconcile</button>';
+const cardAccount=(data.banks?.cgd?.accounts||[]).find(a=>roleOf(state,"cgd",a)==="credit");
+if(cardAccount){
+ const pol=state.creditPolicies?.[accountKey("cgd",cardAccount)]||{};
+ s+='<div class="note" style="margin-top:12px"><strong>Caixa Classic · semântica do saldo</strong><p>O valor apresentado pelo banco só será interpretado como crédito disponível após confirmação. O limite não é dinheiro disponível.</p>'+
+ '<label>Limite contratual do cartão (€)<input id="classicLimit" type="number" min="1" step="0.01" value="'+escapeHTML(pol.limit??2500)+'"></label>'+
+ '<label><input type="checkbox" id="classicAvailableConfirm" '+(pol.userVerified===true?'checked':'')+'> Confirmo que o saldo exibido para esta conta Caixa Classic significa <strong>crédito disponível</strong>, não dívida nem saldo de conta corrente.</label>'+
+ '<button id="saveClassicSemantics">Confirmar semântica e reconciliar cartão</button></div>';
+}
+
 if(cashCount)s+='<p class="good"><strong>Identified cash:</strong> '+format(cash)+' across '+cashCount+' current/savings account(s). Credit-card balances excluded.</p>';
 if(unassigned)s+='<p class="note">'+unassigned+' account(s) are not classified and excluded from cash until you confirm them.</p>';
 s+='<p class="muted">Transactions in supplied snapshot: '+txCount+'. A credit-card balance can represent available credit, not outstanding debt. The app does not set your card loan balance from this figure.</p>';$("summary").innerHTML=s;
 document.querySelectorAll("[data-role]").forEach(el=>el.value=state.accountRoles?.[el.dataset.role]||"unassigned");
+const classicButton=document.getElementById("saveClassicSemantics");
+if(classicButton)classicButton.onclick=()=>{
+ const st=stateRead(),a=(currentData.banks?.cgd?.accounts||[]).find(x=>roleOf(st,"cgd",x)==="credit"),confirmed=document.getElementById("classicAvailableConfirm")?.checked,limit=Number(document.getElementById("classicLimit")?.value);
+ if(!a||!confirmed||!Number.isFinite(limit)||limit<=0){$("msg").textContent="Classifique primeiro o cartão e confirme explicitamente o significado do saldo e o limite.";return}
+ st.creditPolicies=st.creditPolicies||{};
+ st.creditPolicies[accountKey("cgd",a)]={meaning:"available-credit",userVerified:true,limit,confirmedAt:new Date().toISOString()};
+ const finance=MFCFinance.debtState(st);
+ localStorage.setItem(KEY,JSON.stringify(st));
+ reconcileFromSaved();display(currentData);renderDebtReconciliation();
+ $("msg").textContent="Semântica Caixa Classic verificada. Crédito disponível de "+format(euroBalance(a))+" sobre o limite de "+format(limit)+". Verifique Dívidas e Intelligence v7.";
+};
 $("saveRoles").onclick=()=>{const st=stateRead();st.accountRoles=st.accountRoles||{};const roles={...st.accountRoles};document.querySelectorAll("[data-role]").forEach(el=>{roles[el.dataset.role]=el.value});const cgd=(currentData.banks?.cgd?.accounts||[]);if(cgd.length===2){const mapped=cgd.map(a=>roles[accountKey("cgd",a)]);if(mapped.filter(r=>r==="current").length!==1||mapped.filter(r=>r==="credit").length!==1){$("msg").textContent="For your two CGD accounts, identify exactly one current account and one credit card before proceeding.";return}}st.accountRoles=roles;localStorage.setItem(KEY,JSON.stringify(st));reconcileFromSaved();display(currentData);$("msg").textContent="Account types saved. Current and savings accounts now feed the automatic total cash value; credit cards and excluded accounts are not counted.";};
 }
 function categoryOf(tx,role){const d=String(tx.description||"").toUpperCase();if(role==="credit"&&/PAGAMENTO|PAYMENT|LIQUID|AMORTIZA/.test(d))return "Debt payment";if(/CREDIBOM|PRESTA.CAO|PRESTACAO CREDITO|PAGAMENTO CARTAO|PAGAMENTO CARTÃO|CAIXA CLASSIC|C CLASSIC|CARTAO CREDITO|CARTÃO CRÉDITO/.test(d))return "Debt payment";if(/^T(F|R)I?\s+ASSOCIACAO\s+RAEGE$/.test(d.replace(/\s+/g," ").trim())&&Number(tx.amount)>0)return "Salary";if(/CONTINENTE|FINANCOR|FINANÇOR|PINGO DOCE|LIDL|AUCHAN|SUPERMERC|MINIPRECO|MERCEARIA/.test(d))return "Food";if(/COMBUST|GALP|REPSOL|BP |AUTOESTRADA|UBER|BOLT|TAXI|TÁXI|PARKING|ESTACION/.test(d))return "Transport";if(/MEO |TELECOM|ELETRIC|ENERGIA|EDP |AGUAS|ÁGUAS/.test(d))return "Bills";if(/TRANSFER|TRF |TRANSF|REVOLUT|CAR WAL CRT DEB REVOL/.test(d))return "Uncategorised";return role==="credit"?"Card purchase / review":"Uncategorised"}
@@ -50,30 +70,13 @@ function inferCgdRoles(s,data){
  return [{bank:"cgd",role:"current",account_ref:cgd[currentIdx].account_ref||""},{bank:"cgd",role:"credit",account_ref:cgd[creditIdx].account_ref||""}];
 }
 function carryForwardAccountRoles(s,data){
- const roles={...(s.accountRoles||{})},oldBanks=s.bankSync?.banks||{},migrations=[];
- for(const [bank,newBank] of Object.entries(data.banks||{})){
-  const oldAccounts=oldBanks?.[bank]?.accounts||[],newAccounts=newBank?.accounts||[];
-  if(!oldAccounts.length||oldAccounts.length!==newAccounts.length)continue;
-  const oldRoleList=oldAccounts.map(a=>roles[accountKey(bank,a)]||"unassigned");
-  const newRoleList=newAccounts.map(a=>roles[accountKey(bank,a)]||"unassigned");
-  if(oldRoleList.every(r=>r==="unassigned")||newRoleList.some(r=>r!=="unassigned"))continue;
-  // Open Banking re-authorisation can rotate account_ref values. If the bank
-  // returns the same number/order of accounts, preserve the user's prior roles.
-  for(let idx=0;idx<newAccounts.length;idx++){
-   const role=oldRoleList[idx];
-   if(role==="unassigned")continue;
-   const newKey=accountKey(bank,newAccounts[idx]);
-   roles[newKey]=role;
-   if(accountKey(bank,oldAccounts[idx])!==newKey)migrations.push({bank,index:idx,role,from:oldAccounts[idx].account_ref||"",to:newAccounts[idx].account_ref||""});
-  }
- }
- s.accountRoles=roles;
- if(migrations.length)s.accountRoleMigration={at:new Date().toISOString(),reason:"account_ref changed after bank re-authorisation",migrations};
- return migrations;
+ // Never transfer credit-card semantics or account roles by index/order.
+ // Exact account_ref matches keep their verified classification naturally.
+ return [];
 }
 function importSnapshot(data){let s=stateRead();if(!s||typeof s!=="object")s={};const roleMigrations=carryForwardAccountRoles(s,data),roleInferences=inferCgdRoles(s,data);s.transactions=Array.isArray(s.transactions)?s.transactions:[];let ids=new Set(s.transactions.map(t=>t.import_id).filter(Boolean)),n=0;for(const [bank,b] of Object.entries(data.banks||{})){for(const acc of b.accounts||[]){const role=roleOf(s,bank,acc);for(const tx of acc.transactions||[]){if(!tx.id||ids.has(tx.id))continue;const num=Number(tx.amount);if(!Number.isFinite(num))continue;s.transactions.push({date:String(tx.date||""),description:String(tx.description||"Bank movement"),amount:num,account:String(bank).toUpperCase(),category:categoryOf(tx,role),import_id:tx.id,account_ref:acc.account_ref||"",imported_by_bank_bridge:true});ids.add(tx.id);n++}}}
 const pairs=pairedTransfers(s.transactions);for(const tx of s.transactions){if(pairs.has(tx.import_id)&&["Uncategorised","Transfer"].includes(tx.category))tx.category="Transfer"}
-s.bankSync={generated_at:data.generated_at,banks:Object.fromEntries(Object.entries(data.banks||{}).map(([bank,b])=>[bank,{accounts:(b.accounts||[]).map(a=>({account_ref:a.account_ref,balance:a.balance}))}]))};
+s.bankSync={generated_at:data.generated_at,banks:Object.fromEntries(Object.entries(data.banks||{}).map(([bank,b])=>[bank,{accounts:(b.accounts||[]).map(a=>({account_ref:a.account_ref,balance:a.balance,account_type:a.account_type||null,balance_type:a.balance_type||a.balance?.type||null}))}]))};
 try{localStorage.setItem(KEY,JSON.stringify(s))}catch(e){throw Error("Phone storage is full or blocked; no import saved")}
 return {newMovements:n,roleMigrations:roleMigrations.length,roleInferences:roleInferences.length,snapshot:data.generated_at||""}}
 function computeIdentifiedCash(s){
@@ -86,6 +89,9 @@ let tx=Array.isArray(s.transactions)?s.transactions:[];for(let t of tx){if(!t.im
 const pairs=pairedTransfers(tx);for(let t of tx){if(pairs.has(t.import_id)&&t.category==="Uncategorised")t.category="Transfer"}
 s.bankReconcile={timestamp:s.bankSync?.generated_at||"",monthlySummary:monthlySummary(tx),unclassified:tx.filter(t=>t.import_id&&["Uncategorised","Card purchase / review"].includes(t.category)).length,importedTransactions:tx.filter(t=>t.import_id).length,source:"mfc-snapshot-v1"};
 const cash=computeIdentifiedCash(s);if(cash.count>0){s.bankCashTotal=cash.total;s.bankCashCount=cash.count;s.bankCashAsOf=cash.generated_at;s.bankCashAccounts=cash.items}else{delete s.bankCashTotal;delete s.bankCashCount;delete s.bankCashAsOf;delete s.bankCashAccounts}
+const debts=MFCFinance.debtState(s);s.debtEstimates={car:debts.car,card:debts.card};s.debtMilestones=s.debtMilestones||{};
+if(debts.card.source==="verified-available-credit"&&debts.card.settled)s.debtMilestones.card={completed:true,completedAt:debts.card.settledAt,source:"verified-available-credit"};
+else if(s.debtMilestones.card?.source==="verified-available-credit")delete s.debtMilestones.card;
 localStorage.setItem(KEY,JSON.stringify(s));return s}
 function monthlySummary(tx){const month=(new Date()).toISOString().slice(0,7);const rows=tx.filter(t=>String(t.date).startsWith(month)&&t.import_id);let spending=0,income=0,repayments=0,transfers=0;for(const t of rows){const n=Number(t.amount)||0;if(t.category==="Salary"&&n>0)income+=n;else if(t.category==="Transfer")transfers+=Math.abs(n);else if(t.category==="Debt payment")repayments+=Math.abs(n);else if(n<0&&t.category!=="Savings")spending+=-n;}return {month,spending,income,repayments,transfers,transactionCount:rows.length}}
 $("import").onclick=async()=>{const f=$("file").files[0];if(!f){$("msg").textContent="Select a .mfc file first.";return}const pw=$("password").value;if(!pw){$("msg").textContent="Enter the transfer password.";return}$("msg").textContent="Decrypting locally...";try{const obj=JSON.parse(await f.text()),data=await decrypt(obj,pw);if($("persist").checked){const result=importSnapshot(data),st=reconcileFromSaved();display(data);const cash=computeIdentifiedCash(st),migration=result.roleMigrations?" Account classification was preserved after bank re-authorisation.":"",inference=result.roleInferences?" CGD account roles were recovered automatically from transaction signatures.":"";$("msg").textContent="Snapshot saved: "+(result.snapshot||"unknown time")+" · "+result.newMovements+" new movement(s) · "+cash.count+" cash account(s) identified"+(cash.count?" · total "+format(cash.total):"")+". "+migration+inference+(cash.count===0?" Please classify the accounts below before returning to Overview.":" Reconciliation complete; Overview and Intelligence will use this snapshot automatically.");}else{display(data);$("msg").textContent="Decrypted for preview only. No snapshot saved."}}catch(e){$("msg").textContent="Import unsuccessful: "+(e.name==="OperationError"?"Incorrect password or damaged encrypted file.":e.message)}finally{$("password").value=""}};
@@ -98,37 +104,27 @@ function debtMatches(t,kind){
  if(kind==="car")return /CREDIBOM/.test(d);
  return /CAIXA CLASSIC|C CLASSIC|PAGAMENTO CARTAO|CARTAO CREDITO|PAG CARTAO|PAG\. CARTAO/.test(d);
 }
-function computeDebtEstimates(s){
- const cfg=s.debtAnchors||{}, tx=Array.isArray(s.transactions)?s.transactions:[],out={};
- for(const kind of ["car","card"]){
-  const anchor=cfg[kind];
-  if(!anchor||!/^\d{4}-\d{2}-\d{2}$/.test(anchor.date)||!Number.isFinite(Number(anchor.balance))||Number(anchor.balance)<0)continue;
-  const payments=tx.filter(t=>t.import_id&&t.date>anchor.date&&t.date<=new Date().toISOString().slice(0,10)&&Number(t.amount)<0&&debtMatches(t,kind));
-  const unique=[...new Map(payments.map(t=>[t.import_id,t])).values()];
-  const paid=unique.reduce((sum,t)=>sum-Number(t.amount),0);
-  const balance=Math.max(0,Math.round((Number(anchor.balance)-paid)*100)/100);
-  const asOf=unique.reduce((d,t)=>t.date>d?t.date:d,anchor.date),settled=balance<=0.01;
-  out[kind]={balance:settled?0:balance,anchorBalance:Number(anchor.balance),anchorDate:anchor.date,payments:Math.round(paid*100)/100,matches:unique.length,asOf,status:settled?"settled":"schedule-based",settled,settledAt:settled?asOf:"",warning:"No interest added: the reference balance must represent total remaining scheduled payments, including interest. If it represents principal only, use the principal portions from the repayment schedule."};
- }
- return out;
-}
+function computeDebtEstimates(s){const d=MFCFinance.debtState(s);return {car:d.car,card:d.card}}
 function debtEuro(n){return new Intl.NumberFormat('pt-PT',{style:'currency',currency:'EUR'}).format(Number(n)||0)}
 function debtEscape(x){return String(x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function renderDebtReconciliation(){
  const s=stateRead(),out=computeDebtEstimates(s);
- let html='<h2>Debt estimates from imported transactions</h2><p class="muted">Set an initial verified outstanding balance and its statement date once. Only later identified payments will reduce the estimate. No payment is initiated.</p>';
- for(const [kind,label,field] of [["car","Credibom (car)","carBalance"],["card","Caixa Classic","cardBalance"]]){
+ let html='<h2>Reconciliação das dívidas</h2><p class="muted">Caixa Classic: crédito disponível confirmado (não é dinheiro em conta). Credibom: estimativa a partir da referência e pagamentos posteriores; sem confirmação de saldo pela financeira.</p>';
+ for(const [kind,label,field] of [["car","Credibom","carBalance"]]){
   const a=s.debtAnchors?.[kind]||{},v=out[kind];
   html+='<div class="row"><strong>'+label+'</strong><span>'+(v?debtEuro(v.balance)+' · estimated ('+v.matches+' payments)':'Not calibrated')+'</span></div>';
   html+='<label>Remaining scheduled payments including interest (€)<input type="number" min="0" step="0.01" id="anchor-'+kind+'" value="'+debtEscape(a.balance??"")+'"></label>';
   html+='<label>Statement date<input type="date" id="anchor-date-'+kind+'" value="'+debtEscape(a.date||"")+'"></label>';
   if(v)html+='<p class="muted">Payments deducted: '+debtEuro(v.payments)+'. No interest added. The reference balance must include all scheduled future instalments. New card purchases are not included.</p>';
  }
- html+='<button id="saveDebtAnchors">Save reference balances & recalculate</button><p class="note">For Caixa Classic, purchases and charges may increase debt. The estimate is therefore a lower-bound scenario, not a confirmed outstanding balance. Review your latest statement.</p>';
+ const card=MFCFinance.debtState(s).card;
+ html+='<div class="row"><strong>Caixa Classic</strong><span>'+((card.source==="verified-available-credit")?debtEuro(card.balance)+' · '+(card.settled?'Sem dívida pendente':'Crédito utilizado'):'Por validar')+'</span></div>';
+ html+='<p class="muted">Fonte Caixa Classic: '+debtEscape(card.source)+'. Confirme o campo de crédito disponível na classificação de contas, acima.</p>';
+ html+='<button id="saveDebtAnchors">Guardar referência Credibom e recalcular</button><p class="note">Credibom: o cálculo não inclui novos juros ou comissões, salvo se já estiverem incluídos na referência.</p>';
  let el=document.getElementById("debtReconciliation");if(!el)return;el.innerHTML=html;
  document.getElementById("saveDebtAnchors").onclick=()=>{
   const st=stateRead();st.debtAnchors=st.debtAnchors||{};
-  for(const kind of ["car","card"]){
+  for(const kind of ["car"]){
    const raw=document.getElementById("anchor-"+kind).value, date=document.getElementById("anchor-date-"+kind).value;
    if(!raw&&!date){delete st.debtAnchors[kind];continue}
    if(!raw||!/^\d{4}-\d{2}-\d{2}$/.test(date)||Number(raw)<0||!Number.isFinite(Number(raw))){alert("Enter a valid amount and date for "+kind);return}
@@ -141,6 +137,6 @@ function renderDebtReconciliation(){
 const debtCard=document.createElement("div");debtCard.className="card";debtCard.id="debtReconciliation";
 document.querySelector("main").insertBefore(debtCard,document.querySelector("main").lastElementChild);
 const originalImportHandler=document.getElementById("import").onclick;
-document.getElementById("import").onclick=async function(){await originalImportHandler();const st=stateRead();if(st.bankSync){st.debtEstimates=computeDebtEstimates(st);st.debtMilestones=st.debtMilestones||{};const card=st.debtEstimates?.card;if(card?.settled){st.debtMilestones.card={completed:true,completedAt:card.settledAt||new Date().toISOString().slice(0,10),source:"Imported bank transactions"};}else if(st.debtMilestones.card?.completed&&card&&card.balance>0.01){delete st.debtMilestones.card;}localStorage.setItem(KEY,JSON.stringify(st))}renderDebtReconciliation()};
+document.getElementById("import").onclick=async function(){await originalImportHandler();renderDebtReconciliation()};
 renderDebtReconciliation();
 </script></body></html>
