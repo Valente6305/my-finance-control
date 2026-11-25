@@ -51,3 +51,15 @@ O conjunto de testes cobre liquidação confirmada, utilização parcial, saldo 
 ## Limitações
 
 O saldo atual do Caixa Classic só pode ser considerado **confirmado pela semântica do utilizador e pelo snapshot observado** quando a aplicação recebe um saldo com a interpretação validada. O `.mfc` não garante por si só o significado do campo genérico de saldo. A ligação Open Banking não confirma automaticamente saldo contratual do Credibom.
+
+## Melhorias da auditoria de 24/11/2026
+
+- Importação `.mfc` com validação estrutural e relatório de diferenças de saldos, movimentos novos e duplicados, e avisos de qualidade.
+- Histórico local dos últimos 24 relatórios de importação, sem envio de dados para o GitHub.
+- Correção de categorias diretamente em **Overview → Movimentos**, com preservação nas importações seguintes.
+- Saldos por reconciliar não herdam silenciosamente valores legados.
+- Aviso explícito antes de exportar um backup JSON não encriptado.
+
+Consulta [Auditoria e plano de evolução](docs/auditoria-e-roadmap-2026-11.md) e [Guia de utilização para iPhone e Mac](docs/guia-utilizacao-iphone-mac.md).
+
+Os modelos de previsão avançada, o Intelligence v8 e os testes end-to-end no Safari são etapas posteriores e não estão representados como concluídos.
