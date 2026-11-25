@@ -24,6 +24,47 @@ function snapshotDecision(s,incoming){
  if(Number.isFinite(old)&&ts<old)return {accept:false,reason:"O snapshot é anterior ao já guardado ("+previous+")"};
  return {accept:true,reason:ts===old?"Mesmo snapshot":"Novo snapshot"};
 }
+function validateSnapshot(data){
+ const errors=[],warnings=[],ids=new Set(),refs=new Set();
+ if(!data||data.format!=="mfc-snapshot-v1")errors.push("Formato .mfc não suportado");
+ const date=Date.parse(data?.generated_at||"");
+ if(!Number.isFinite(date))errors.push("Data de geração inválida");
+ else if(date>Date.now()+6*3600000)errors.push("Snapshot com data futura incompatível");
+ if(!data?.banks||typeof data.banks!=="object"||Array.isArray(data.banks))errors.push("Estrutura de bancos inválida");
+ let accounts=0,transactions=0;
+ for(const [bank,b] of Object.entries(data?.banks||{})){
+  if(!b||!Array.isArray(b.accounts)){errors.push("Contas inválidas: "+bank);continue;}
+  for(const a of b.accounts){
+   accounts++;
+   if(!a||typeof a.account_ref!=="string"||!a.account_ref)errors.push("Referência de conta inválida em "+bank);
+   const ref=key(bank,a);
+   if(refs.has(ref))errors.push("Conta duplicada: "+bank);
+   refs.add(ref);
+   if(a.balance&&a.balance.amount!==null&&a.balance.amount!==undefined&&number(a.balance.amount)===null)errors.push("Saldo inválido: "+bank);
+   if(a.balance?.currency&&a.balance.currency!=="EUR")warnings.push("Moeda não EUR em "+bank);
+   if(!Array.isArray(a.transactions)){warnings.push("Movimentos ausentes em "+bank);continue;}
+   for(const t of a.transactions){
+    transactions++;
+    if(!t||!/^\d{4}-\d{2}-\d{2}$/.test(String(t.date||""))||!Number.isFinite(Date.parse(t.date+"T12:00:00Z"))||number(t.amount)===null){errors.push("Movimento inválido em "+bank);continue;}
+    if(t.id){if(ids.has(bank+"|"+t.id))warnings.push("Identificador de movimento repetido em "+bank);ids.add(bank+"|"+t.id);}
+    else warnings.push("Movimento sem identificador em "+bank);
+   }
+  }
+ }
+ if(!accounts)errors.push("Snapshot sem contas");
+ return {valid:errors.length===0,errors:[...new Set(errors)].slice(0,12),warnings:[...new Set(warnings)].slice(0,12),accounts,transactions};
+}
+function snapshotDiff(previous,next){
+ const prior={},current={},changes=[];
+ for(const [bank,b] of Object.entries(previous?.banks||{}))for(const a of b.accounts||[])prior[key(bank,a)]={bank,amount:number(a.balance?.amount),currency:a.balance?.currency||"",ref:a.account_ref||""};
+ for(const [bank,b] of Object.entries(next?.banks||{}))for(const a of b.accounts||[])current[key(bank,a)]={bank,amount:number(a.balance?.amount),currency:a.balance?.currency||"",ref:a.account_ref||""};
+ for(const [ref,a] of Object.entries(current)){
+  const old=prior[ref],comparable=old&&a.currency==="EUR"&&old.currency==="EUR"&&a.amount!==null&&old.amount!==null;
+  changes.push({bank:a.bank,refSuffix:a.ref.slice(-6),type:old?"existing":"new",previous:comparable?old.amount:null,current:a.amount,delta:comparable?round(a.amount-old.amount):null});
+ }
+ for(const [ref,a] of Object.entries(prior))if(!current[ref])changes.push({bank:a.bank,refSuffix:a.ref.slice(-6),type:"missing",previous:a.amount,current:null,delta:null});
+ return {changes,newAccounts:changes.filter(x=>x.type==="new").length,missingAccounts:changes.filter(x=>x.type==="missing").length};
+}
 function bankCash(s){
  const banks=s.bankSync?.banks||{},roles=s.accountRoles||{},items=[];
  for(const [bank,b] of Object.entries(banks))for(const a of (b.accounts||[])){
@@ -85,5 +126,5 @@ function quality(s){
  if(days!==null&&days>2)issues.push("Snapshot desatualizado: "+days+" dia(s)");
  return {rows:rows.length,accounts:accounts.length,assigned:accounts.filter(a=>a.role!=="unassigned").length,cashCount:cash.count,unclassified,days,issues,status:issues.length?"attention":"reconciled"};
 }
-root.MFCFinance={version:"1.1.0",key,bankCash,debtState,quality,uniqueTransactions,snapshotDecision};
+root.MFCFinance={version:"1.2.0",key,bankCash,debtState,quality,uniqueTransactions,snapshotDecision,validateSnapshot,snapshotDiff};
 })(window);
