@@ -1,0 +1,27 @@
+name: Finance reconciliation regression tests
+on:
+  push:
+    paths:
+      - 'finance-core.js'
+      - 'tests/**'
+      - '.github/workflows/finance-tests.yml'
+  pull_request:
+    paths:
+      - 'finance-core.js'
+      - 'tests/**'
+      - '.github/workflows/finance-tests.yml'
+
+jobs:
+  finance-core:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run synthetic financial reconciliation tests
+        run: node tests/finance-core.test.js
