@@ -45,12 +45,17 @@ function run(){
  persisted.bankSync.banks.cgd.accounts[1].account_ref="rotated";
  persisted.accountRoles["cgd|rotated"]="credit";
  assert.equal(f.debtState(persisted).card.settled,false);
+ // Snapshot freshness: an old export cannot overwrite current balances.
+ assert.equal(f.snapshotDecision(reimport,"2026-11-11T10:00:00Z").accept,false);
+ assert.equal(f.snapshotDecision(reimport,"2026-11-24T12:00:00Z").accept,true);
+ assert.equal(f.snapshotDecision(reimport,"2026-11-25T12:00:00Z").accept,true);
+ assert.equal(f.snapshotDecision(reimport,"invalid").accept,false);
  // Metadata guard: available credit exceeding limit cannot be trusted.
  assert.equal(f.debtState(sample(2600)).card.settled,false);
  // No known debt balance is not proof of settlement.
  const empty=sample(2500,{verified:false});delete empty.cardBalance;
  assert.equal(f.debtState(empty).card.balance,null);
  assert.equal(f.debtState(empty).card.settled,false);
- console.log("PASS: A–G + rotated refs + invalid balances + unknown debt");
+ console.log("PASS: A–G, snapshot freshness, rotated refs, invalid balances and unknown debt");
 }
 run();
