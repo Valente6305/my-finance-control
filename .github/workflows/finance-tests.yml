@@ -24,4 +24,6 @@ jobs:
         with:
           node-version: '22'
       - name: Run synthetic financial reconciliation tests
-        run: node tests/finance-core.test.js
+        run: |
+          node tests/finance-core.test.js
+          node tests/verify-pages.test.js
