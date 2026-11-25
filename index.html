@@ -88,7 +88,7 @@ details{margin-top:12px}footer{text-align:center;color:#7d8b98;font-size:.8rem;p
   <button data-mobile-tab="transactions"><span class="ico">↕</span><span>Movimentos</span></button>
   <button data-mobile-more><span class="ico">•••</span><span>Mais</span></button>
 </nav>
-<div id="toast"></div><script>
+<div id="toast"></div><script src="./finance-core.js?v=1"></script><script>
 'use strict';
 const KEY='finance-control-public-v2';
 const defaults={salary:0,balance:0,balanceDate:'',reserve:0,cardBalance:0,cardAPR:0,cardRegular:231.25,carBalance:0,carAPR:0,carRegular:210.74,meo:0,bankSubs:0,food:0,transport:0,misc:0,workingBuffer:0,transactions:[],paymentConfirmations:{},goals:[]};
@@ -111,9 +111,9 @@ function monthlySpend(mm=currentMonth()){const bank=transactions().filter(t=>mon
 function salaryDetected(){const seed=n(state.salary)||2096.22,c=regularSalaryCandidates().filter(t=>month(t.date)===currentMonth());if(!c.length)return 0;return n(c.sort((a,b)=>Math.abs(n(a.amount)-seed)-Math.abs(n(b.amount)-seed))[0].amount)}
 function paymentStatus(name,amount,re){const mm=currentMonth(),manual=state.paymentConfirmations?.[mm]?.[name];const hits=transactions().filter(t=>month(t.date)===mm&&n(t.amount)<0&&re.test(norm(t.description)));const paid=hits.reduce((a,t)=>a-n(t.amount),0);return {name,amount,paid,detected:hits.length>0||!!manual,bank:hits.length>0,manual:!hits.length&&!!manual,exact:hits.some(t=>Math.abs(-n(t.amount)-amount)<=1)}}
 function paymentStatuses(){return [paymentStatus('Credibom',n(state.carRegular)||210.74,/CREDIBOM/),paymentStatus('Caixa Classic',n(state.cardRegular)||231.25,/CAIXA CLASSIC|C CLASSIC|PAGAMENTO CARTAO|PAG CARTAO|CARTAO CREDITO/)]}
-function cardDebtBalance(){const c=state.debtEstimates?.card;return c?n(c.balance):n(state.cardBalance)}
-function cardDebtSettled(){return cardDebtBalance()<=0.01||!!state.debtMilestones?.card?.completed}
-function effectiveCardPayment(){return cardDebtSettled()?0:(n(state.cardRegular)||231.25)}
+function cardDebtBalance(){return MFCFinance.debtState(state).card.balance}
+function cardDebtSettled(){return MFCFinance.debtState(state).card.settled===true}
+function effectiveCardPayment(){return MFCFinance.debtState(state).cardPayment}
 function budgetTotal(){return n(state.food)+n(state.transport)+n(state.meo)+n(state.bankSubs)+n(state.misc)}
 function migrateGoal(){if((state.goals||[]).length===0&&n(state.scooterTarget)>0){state.goals=[{id:'legacy-scooter',name:'Trotinete',target:n(state.scooterTarget),saved:n(state.scooter)}];save()}}
 migrateGoal();
@@ -129,7 +129,7 @@ function migratePayrollDeductions(){
  save();
 }
 function automaticSafetyMargin(){
- const pay=payrollDeductions(),essential=pay.total+n(state.food)+n(state.transport)+n(state.meo)+n(state.bankSubs)+n(state.carRegular)+effectiveCardPayment();
+ const pay=payrollDeductions(),essential=pay.total+n(state.food)+n(state.transport)+n(state.meo)+n(state.bankSubs)+MFCFinance.debtState(state).carPayment+effectiveCardPayment();
  return {essential,margin:Math.max(300,Math.round(essential*.10*100)/100)};
 }
 function payrollDeductions(mm=currentMonth()){
@@ -144,21 +144,12 @@ const progress=(v,tone='')=>'<div class="progress '+tone+'"><span style="width:'
 const row=(a,b)=>'<div class="row"><span>'+a+'</span><strong>'+b+'</strong></div>';
 const field=(key,label,value,step='.01')=>'<label>'+label+'<input data-field="'+key+'" type="number" step="'+step+'" value="'+n(value)+'"></label>';
 function recomputeDerivedDebtState(){
- const cfg=state.debtAnchors||{},rows=transactions(),out={};
- const match=(t,kind)=>kind==="car"?/CREDIBOM/.test(norm(t.description)):/CAIXA CLASSIC|C CLASSIC|PAGAMENTO CARTAO|CARTAO CREDITO|PAG CARTAO|PAG\. CARTAO/.test(norm(t.description));
- for(const kind of ["car","card"]){
-  const a=cfg[kind];
-  if(!a||!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(String(a.date||""))||!Number.isFinite(Number(a.balance))||Number(a.balance)<0)continue;
-  const hits=rows.filter(t=>t.import_id&&String(t.date)>a.date&&String(t.date)<=new Date().toISOString().slice(0,10)&&n(t.amount)<0&&match(t,kind));
-  const unique=[...new Map(hits.map(t=>[t.import_id,t])).values()];
-  const paid=unique.reduce((sum,t)=>sum-n(t.amount),0),raw=Math.max(0,Math.round((Number(a.balance)-paid)*100)/100),settled=raw<=0.01;
-  const asOf=unique.reduce((d,t)=>String(t.date)>d?String(t.date):d,a.date);
-  out[kind]={balance:settled?0:raw,anchorBalance:Number(a.balance),anchorDate:a.date,payments:Math.round(paid*100)/100,matches:unique.length,asOf,status:settled?"settled":"schedule-based",settled,settledAt:settled?asOf:""};
- }
- state.debtEstimates=out;
+ const d=MFCFinance.debtState(state);
+ state.debtEstimates={car:d.car,card:d.card};
  state.debtMilestones=state.debtMilestones||{};
- if(out.card?.settled)state.debtMilestones.card={completed:true,completedAt:out.card.settledAt||new Date().toISOString().slice(0,10),source:"Imported bank transactions"};
- else if(out.card&&out.card.balance>0.01&&state.debtMilestones.card?.source==="Imported bank transactions")delete state.debtMilestones.card;
+ if(d.card.source==="verified-available-credit"&&d.card.settled)
+  state.debtMilestones.card={completed:true,completedAt:d.card.settledAt,source:"verified-available-credit"};
+ else if(state.debtMilestones.card?.source==="verified-available-credit"||state.debtMilestones.card?.source==="Imported bank transactions")delete state.debtMilestones.card;
 }
 function dataQualityStatus(){
  const tx=transactions(),bankTx=tx.filter(t=>t.import_id),snapshot=state.bankSync?.generated_at||"",banks=state.bankSync?.banks||{},roles=state.accountRoles||{};
@@ -174,7 +165,8 @@ function dataQualityStatus(){
  else if(assignedAccounts<totalAccounts)issues.push((totalAccounts-assignedAccounts)+" conta(s) por classificar");
  if(!cash.count&&snapshot)issues.push("Nenhuma conta corrente/poupança reconciliada");
  if(unclassified>0)issues.push(unclassified+" movimento(s) por classificar");
- const level=!snapshot||!cash.count?"bad":(age!==null&&age>2)||(totalAccounts&&assignedAccounts<totalAccounts)||(bankTx.length&&coverage<90)?"warn":"good";
+ if(MFCFinance.debtState(state).card.source!=="verified-available-credit")issues.push("Semântica Caixa Classic não validada");
+ const level=!snapshot||!cash.count?"bad":issues.length?"warn":"good";
  return {snapshot,age,totalAccounts,assignedAccounts,bankTransactions:bankTx.length,unclassified,coverage,cashAccounts:cash.count,level,issues};
 }
 function renderDataQualityCard(){
@@ -197,28 +189,13 @@ function dataProvenance(){
   bankTransactions:bankTx.length,
   cashSource:cash.count>0?"Banco (.mfc)":"Referência manual",
   salarySource:salary>0?"Movimentos bancários (.mfc)":"Referência/indisponível",
-  cardSource:card?"Saldo de referência + pagamentos .mfc":"Referência manual",
-  carSource:car?"Saldo de referência + pagamentos .mfc":"Referência manual"
+  cardSource:card?.source==="verified-available-credit"?"Crédito disponível validado · .mfc":"Por validar",
+  carSource:car?.source==="reference-minus-payments"?"Referência + pagamentos .mfc":"Referência manual"
  };
 }
-function overviewBankCash(){
- if(Number(state.bankCashCount)>0&&Number.isFinite(Number(state.bankCashTotal))){
-  return {value:Number(state.bankCashTotal),count:Number(state.bankCashCount),asOf:state.bankCashAsOf||state.bankSync?.generated_at||state.balanceDate||"",source:"bank-cash"};
- }
- const banks=state.bankSync?.banks||{},roles=state.accountRoles||{};let total=0,count=0;
- for(const [bank,b] of Object.entries(banks)){
-  for(const a of (b.accounts||[])){
-   const role=roles[String(bank).toLowerCase()+"|"+String(a.account_ref||"")]||"unassigned",bal=a.balance||{};
-   if((role==="current"||role==="savings")&&bal.currency==="EUR"&&bal.amount!==null&&bal.amount!==undefined&&Number.isFinite(Number(bal.amount))){
-    total+=Number(bal.amount);count++;
-   }
-  }
- }
- if(count>0)return {value:total,count,asOf:state.bankSync?.generated_at||state.balanceDate||"",source:"computed"};
- return {value:n(state.balance),count:0,asOf:state.balanceDate||"",source:"legacy"};
-}
+function overviewBankCash(){return MFCFinance.bankCash(state)}
 function renderOverview(){
- const cash=overviewBankCash(),payroll=payrollDeductions(),spent=monthlySpend(),budget=budgetTotal()+payroll.total,salary=salaryDetected(),payments=paymentStatuses(),pending=payments.reduce((a,p)=>a+(p.detected?0:p.amount),0),available=n(cash.value)-n(state.reserve)-pending,age=cash.asOf?Math.max(0,Math.floor((Date.now()-new Date(cash.asOf))/86400000)):null;
+ const cash=overviewBankCash(),payroll=payrollDeductions(),spent=monthlySpend(),budget=budgetTotal()+payroll.total,salary=salaryDetected(),payments=paymentStatuses().filter(p=>p.name!=="Caixa Classic"||!cardDebtSettled()),pending=payments.reduce((a,p)=>a+(p.detected?0:p.amount),0),available=n(cash.value)-n(state.reserve)-pending,age=cash.asOf?Math.max(0,Math.floor((Date.now()-new Date(cash.asOf))/86400000)):null;
  const reservePct=n(state.reserve)?Math.min(100,n(cash.value)/n(state.reserve)*100):0,budgetPct=budget?spent/budget*100:0;
  document.getElementById('overview').innerHTML=
  '<div class="grid">'+
@@ -268,18 +245,21 @@ function renderBudget(){
  bindFields();document.getElementById('saveBudget').onclick=()=>{save();renderAll()}
 }
 function renderDebts(){
- const goals=state.goals||[],car=state.debtEstimates?.car,card=state.debtEstimates?.card,carBal=car?n(car.balance):n(state.carBalance),cardBal=card?n(card.balance):n(state.cardBalance),cardDone=cardBal<=0.01||!!state.debtMilestones?.card?.completed;
+ const goals=state.goals||[],debts=MFCFinance.debtState(state),car=debts.car,card=debts.card,carBal=car.balance,cardBal=card.balance,cardDone=card.settled===true,cardVerified=card.source==="verified-available-credit";
  document.getElementById('debts').innerHTML=
  '<div class="debt-grid">'+
- '<div class="debt-card"><div class="goal-head"><h2>Caixa Classic</h2>'+badge(cardDone?'Objetivo concluído':'Prioridade alta',cardDone?'good':'bad')+'</div>'+
- row('Saldo estimado',eur(cardDone?0:cardBal))+row('Pagamento mensal',cardDone?badge('0 € · encerrado','good'):eur(state.cardRegular))+row('Taxa anual',n(state.cardAPR).toFixed(2)+'%')+
- (card?row('Pagamentos identificados',card.matches+' · '+eur(card.payments))+row('Atualizado até',esc(card.asOf)):'')+
- (cardDone?'<p class="muted">Objetivo concluído'+(state.debtMilestones?.card?.completedAt?' em '+esc(state.debtMilestones.card.completedAt):'')+'. A prestação mensal deixou de entrar nas projeções.</p>':'<p class="muted">Crédito revolving. Evitar novas utilizações enquanto existir saldo.</p>')+'</div>'+
- '<div class="debt-card"><div class="goal-head"><h2>Credibom</h2>'+badge(carBal>0?'Em amortização':'Liquidado',carBal>0?'warn':'good')+'</div>'+
- row('Saldo estimado',eur(carBal))+row('Prestação',eur(state.carRegular))+row('Taxa anual',n(state.carAPR).toFixed(2)+'%')+
+ '<div class="debt-card"><div class="goal-head"><h2>Caixa Classic</h2>'+badge(cardDone?'Sem dívida pendente':cardVerified?'Crédito utilizado':'Por validar',cardDone?'good':cardVerified?'warn':'bad')+'</div>'+
+ row('Dívida atual',cardVerified?eur(cardBal):'Por confirmar')+
+ (cardVerified?row('Limite contratual',eur(card.limit))+row('Crédito disponível',eur(card.available)):'')+
+ row('Compromisso futuro',eur(debts.cardPayment))+
+ row('Fonte',cardVerified?'Crédito disponível verificado no .mfc':'Saldo de referência não validado')+
+ (cardVerified?row('Atualizado até',esc(card.asOf)):'')+
+ (cardDone?'<p class="muted">Sem dívida pendente no snapshot. O cartão mantém-se aberto e pode voltar a ter utilização.</p>':'<p class="muted">Confirme a semântica do saldo em Contas bancárias. Não é possível confirmar a liquidação só por movimentos históricos.</p>')+'</div>'+
+ '<div class="debt-card"><div class="goal-head"><h2>Credibom</h2>'+badge(carBal>0?'Em amortização':'Por verificar',carBal>0?'warn':'warn')+'</div>'+
+ row('Saldo estimado',carBal===null?'Por calibrar':eur(carBal))+row('Prestação',eur(state.carRegular))+row('Taxa anual',n(state.carAPR).toFixed(2)+'%')+
  (car?row('Pagamentos identificados',car.matches+' · '+eur(car.payments))+row('Atualizado até',esc(car.asOf)):'')+
  '</div></div>'+
- '<div class="card accent-red"><h2>Parâmetros das dívidas</h2><div class="grid">'+field('carAPR','Credibom · taxa anual (%)',state.carAPR)+field('carRegular','Credibom · prestação (€)',state.carRegular)+field('cardAPR','Caixa Classic · taxa anual (%)',state.cardAPR)+field('cardRegular','Caixa Classic · pagamento mensal (€)',state.cardRegular)+'</div><button class="action" id="saveDebts">Guardar taxas/prestações</button> <a class="button" href="./bank-accounts.html">Calibrar saldos →</a></div>'+
+ '<div class="card accent-red"><h2>Parâmetros da dívida ativa — Credibom</h2><div class="grid">'+field('carAPR','Credibom · taxa anual (%)',state.carAPR)+field('carRegular','Credibom · prestação (€)',state.carRegular) +'</div><button class="action" id="saveDebts">Guardar taxas/prestações</button> <a class="button" href="./bank-accounts.html">Calibrar saldos →</a></div>'+
  '<div class="card accent-green"><div class="goal-head"><h2>Objetivos</h2>'+badge(goals.length+' ativo(s)','info')+'</div>'+
  (goals.length?goals.map((g,i)=>{const pc=n(g.target)?Math.min(100,n(g.saved)/n(g.target)*100):0;return '<div class="goal-card"><div class="goal-head"><strong>'+esc(g.name)+'</strong><span>'+eur(g.saved)+' / '+eur(g.target)+'</span></div>'+progress(pc,'good')+'<div class="grid"><label>Nome<input data-goal-name="'+i+'" value="'+esc(g.name)+'"></label><label>Reservado (€)<input data-goal-saved="'+i+'" type="number" step=".01" value="'+n(g.saved)+'"></label><label>Meta (€)<input data-goal-target="'+i+'" type="number" step=".01" value="'+n(g.target)+'"></label></div><button class="action danger" data-goal-remove="'+i+'">Remover</button></div>'}).join(''):'<p class="muted">Sem objetivos ativos.</p>')+
  '<div style="margin-top:14px"><button class="action" id="addGoal">Adicionar objetivo</button> <button class="action" id="saveGoals">Guardar objetivos</button></div></div>';
