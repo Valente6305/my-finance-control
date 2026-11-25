@@ -38,10 +38,11 @@ const classicButton=document.getElementById("saveClassicSemantics");
 if(classicButton)classicButton.onclick=()=>{
  const st=stateRead(),a=(currentData.banks?.cgd?.accounts||[]).find(x=>roleOf(st,"cgd",x)==="credit"),confirmed=document.getElementById("classicAvailableConfirm")?.checked,limit=Number(document.getElementById("classicLimit")?.value);
  if(!a||!confirmed||!Number.isFinite(limit)||limit<=0){$("msg").textContent="Classifique primeiro o cartão e confirme explicitamente o significado do saldo e o limite.";return}
+ const available=euroBalance(a);
+ if(available===null||available<0||available>limit+0.01){$("msg").textContent="Saldo do cartão incompatível com crédito disponível: confira moeda, tipo de saldo, limite e conta selecionada. A confirmação não foi guardada.";return}
  st.creditPolicies=st.creditPolicies||{};
  st.creditPolicies[accountKey("cgd",a)]={meaning:"available-credit",userVerified:true,limit,confirmedAt:new Date().toISOString()};
- const finance=MFCFinance.debtState(st);
- localStorage.setItem(KEY,JSON.stringify(st));
+  localStorage.setItem(KEY,JSON.stringify(st));
  reconcileFromSaved();display(currentData);renderDebtReconciliation();
  $("msg").textContent="Semântica Caixa Classic verificada. Crédito disponível de "+format(euroBalance(a))+" sobre o limite de "+format(limit)+". Verifique Dívidas e Intelligence v7.";
 };
