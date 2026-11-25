@@ -199,10 +199,10 @@ function renderOverview(){
  const reservePct=n(state.reserve)?Math.min(100,n(cash.value)/n(state.reserve)*100):0,budgetPct=budget?spent/budget*100:0;
  document.getElementById('overview').innerHTML=
  '<div class="grid">'+
- metric('Dinheiro disponível',eur(cash.value),cash.asOf?'Atualizado '+esc(String(cash.asOf).replace('T',' ').slice(0,16))+(cash.count?' · '+cash.count+' conta(s)':''):'Saldo de referência','info')+
+ metric('Dinheiro disponível',cash.source==="unreconciled"?'Por reconciliar':eur(cash.value),cash.asOf?'Atualizado '+esc(String(cash.asOf).replace('T',' ').slice(0,16))+(cash.count?' · '+cash.count+' conta(s)':''):'Saldo de referência','info')+
  metric('Reserva protegida',eur(state.reserve),reservePct>=100?'Objetivo coberto':'Cobertura atual '+pct(reservePct/100),reservePct>=100?'good':'attention')+
  metric('Execução do mês',budget?pct(spent/budget):'—',eur(spent)+' de '+eur(budget),budgetPct<=100?'good':'debt')+
- metric('Livre acima da reserva',eur(available),'Após compromissos ainda pendentes',available>=0?'good':'debt')+
+ metric('Livre acima da reserva',cash.source==="unreconciled"?'Indisponível':eur(available),'Após compromissos ainda pendentes',cash.source==="unreconciled"?'attention':available>=0?'good':'debt')+
  '</div>'+
  renderDataQualityCard()+
  '<div class="card accent-blue"><h2>Estado financeiro do mês</h2>'+
