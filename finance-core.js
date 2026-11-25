@@ -17,6 +17,13 @@ function uniqueTransactions(s){
  }
  return [...map.values()];
 }
+function snapshotDecision(s,incoming){
+ const previous=s.bankSync?.generated_at||"";
+ const ts=Date.parse(incoming||""),old=Date.parse(previous||"");
+ if(!Number.isFinite(ts))return {accept:false,reason:"Data do snapshot inválida"};
+ if(Number.isFinite(old)&&ts<old)return {accept:false,reason:"O snapshot é anterior ao já guardado ("+previous+")"};
+ return {accept:true,reason:ts===old?"Mesmo snapshot":"Novo snapshot"};
+}
 function bankCash(s){
  const banks=s.bankSync?.banks||{},roles=s.accountRoles||{},items=[];
  for(const [bank,b] of Object.entries(banks))for(const a of (b.accounts||[])){
@@ -78,5 +85,5 @@ function quality(s){
  if(days!==null&&days>2)issues.push("Snapshot desatualizado: "+days+" dia(s)");
  return {rows:rows.length,accounts:accounts.length,assigned:accounts.filter(a=>a.role!=="unassigned").length,cashCount:cash.count,unclassified,days,issues,status:issues.length?"attention":"reconciled"};
 }
-root.MFCFinance={version:"1.0.0",key,bankCash,debtState,quality,uniqueTransactions};
+root.MFCFinance={version:"1.1.0",key,bankCash,debtState,quality,uniqueTransactions,snapshotDecision};
 })(window);
