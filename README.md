@@ -43,9 +43,10 @@ Crédito utilizado = max(0, limite contratual − crédito disponível)
 
 ```bash
 node tests/finance-core.test.js
+node tests/verify-pages.test.js
 ```
 
-O conjunto de testes cobre liquidação confirmada, utilização parcial, saldo ambíguo, deduplicação, coerência entre módulos, projeções sem prestação de cartão e persistência, além de rejeição de snapshots antigos e mudança de identificador bancário.
+O conjunto de testes cobre liquidação confirmada, utilização parcial, saldo ambíguo, deduplicação, coerência entre módulos, projeções sem prestação de cartão e persistência, além de rejeição de snapshots antigos e mudança de identificador bancário. Os testes estruturais validam a sintaxe das páginas e a dependência do mesmo motor. O GitHub Actions executa estes testes em alterações relevantes.
 
 ## Limitações
 
