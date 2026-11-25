@@ -50,12 +50,30 @@ function run(){
  assert.equal(f.snapshotDecision(reimport,"2026-11-24T12:00:00Z").accept,true);
  assert.equal(f.snapshotDecision(reimport,"2026-11-25T12:00:00Z").accept,true);
  assert.equal(f.snapshotDecision(reimport,"invalid").accept,false);
+ // Import validation: supported schema, correct transactions and currencies.
+ const incoming={format:"mfc-snapshot-v1",generated_at:"2026-11-24T12:00:00Z",banks:{
+  cgd:{accounts:[{account_ref:"current",balance:{currency:"EUR",amount:6000},
+   transactions:[{id:"payment-1",date:"2026-11-10",amount:-210.74,description:"CREDIBOM"}]}]}
+ }};
+ assert.equal(f.validateSnapshot(incoming).valid,true);
+ const bad=JSON.parse(JSON.stringify(incoming));bad.banks.cgd.accounts[0].transactions[0].amount="invalid";
+ assert.equal(f.validateSnapshot(bad).valid,false);
+ const invalidDate=JSON.parse(JSON.stringify(incoming));invalidDate.generated_at="not-a-date";
+ assert.equal(f.validateSnapshot(invalidDate).valid,false);
+ // Account diff identifies added/missing accounts and variations without treating
+ // a credit-card credit-limit change as income.
+ const previous={banks:{cgd:{accounts:[{account_ref:"current",balance:{currency:"EUR",amount:5000}},
+  {account_ref:"old",balance:{currency:"EUR",amount:2500}}]}}};
+ const result=f.snapshotDiff(previous,incoming);
+ assert.equal(result.changes.find(x=>x.refSuffix==="urrent").delta,1000);
+ assert.equal(result.missingAccounts,1);
+ assert.equal(result.newAccounts,0);
  // Metadata guard: available credit exceeding limit cannot be trusted.
  assert.equal(f.debtState(sample(2600)).card.settled,false);
  // No known debt balance is not proof of settlement.
  const empty=sample(2500,{verified:false});delete empty.cardBalance;
  assert.equal(f.debtState(empty).card.balance,null);
  assert.equal(f.debtState(empty).card.settled,false);
- console.log("PASS: A–G, snapshot freshness, rotated refs, invalid balances and unknown debt");
+ console.log("PASS: A–G, snapshot freshness, schema validation, account diffs, rotated refs and ambiguous debt");
 }
 run();
